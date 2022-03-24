@@ -11,192 +11,192 @@ static const struct _OPCODE
 	// 0x
 	{ 7, &am6500_imp, &op6500_brk },
 	{ 6, &am6500_indx, &op6500_ora },
-	{ 0, NULL, &op6500_jam },
-	{ 8, &am6500_indx, &op6500_slo },
+	{ 0, &am6500_imp, &op6500_nop },
+	{ 8, &am6500_indx, &op6500_nop },
 	{ 2, &am6500_zp, &op6500_nop },
 	{ 3, &am6500_zp, &op6500_ora },
 	{ 5, &am6500_zp, &op6500_asl },
-	{ 5, &am6500_zp, &op6500_slo },
+	{ 5, &am6500_zp, &op6500_nop },
 	{ 3, &am6500_imp, &op6500_php },
 	{ 2, &am6500_imm, &op6500_ora },
 	{ 2, &am6500_imp, &op6500_asl },
-	{ 2, &am6500_imm, &op6500_anc },
+	{ 2, &am6500_imm, &op6500_nop },
 	{ 4, &am6500_abs, &op6500_nop },
 	{ 4, &am6500_abs, &op6500_ora },
 	{ 6, &am6500_abs, &op6500_asl },
-	{ 6, &am6500_abs, &op6500_slo },
+	{ 6, &am6500_abs, &op6500_nop },
 
 	// 1x
 	{ 2, &am6500_rel, &op6500_bpl },
 	{ 5, &am6500_indy, &op6500_ora },
-	{ 0, NULL, &op6500_jam },
-	{ 8, &am6500_indy, &op6500_slo },
+	{ 0, &am6500_imp, &op6500_nop },
+	{ 8, &am6500_indy, &op6500_nop },
 	{ 4, &am6500_zpx, &op6500_nop },
 	{ 4, &am6500_zpx, &op6500_ora },
 	{ 6, &am6500_zpx, &op6500_asl },
-	{ 6, &am6500_zpx, &op6500_slo },
+	{ 6, &am6500_zpx, &op6500_nop },
 	{ 2, &am6500_imp, &op6500_clc },
 	{ 4, &am6500_absy, &op6500_ora },
 	{ 2, &am6500_imp, &op6500_nop },
-	{ 7, &am6500_absy, &op6500_slo },
+	{ 7, &am6500_absy, &op6500_nop },
 	{ 4, &am6500_absx, &op6500_nop },
 	{ 4, &am6500_absx, &op6500_ora },
 	{ 7, &am6500_absx, &op6500_asl },
-	{ 7, &am6500_absx, &op6500_slo },
+	{ 7, &am6500_absx, &op6500_nop },
 
 	// 2x
 	{ 6, &am6500_abs, &op6500_jsr },
 	{ 6, &am6500_indx, &op6500_and },
-	{ 0, NULL, &op6500_jam },
-	{ 8, &am6500_indx, &op6500_rla },
+	{ 0, &am6500_imp, &op6500_nop },
+	{ 8, &am6500_indx, &op6500_nop },
 	{ 3, &am6500_zp, &op6500_bit },
 	{ 3, &am6500_zp, &op6500_and },
 	{ 5, &am6500_zp, &op6500_rol },
-	{ 5, &am6500_zp, &op6500_rla },
+	{ 5, &am6500_zp, &op6500_nop },
 	{ 4, &am6500_imp, &op6500_plp },
 	{ 2, &am6500_imm, &op6500_and },
 	{ 2, &am6500_imp, &op6500_rol },
-	{ 2, &am6500_imm, &op6500_anc },
+	{ 2, &am6500_imm, &op6500_nop },
 	{ 4, &am6500_abs, &op6500_bit },
 	{ 4, &am6500_abs, &op6500_and },
 	{ 6, &am6500_abs, &op6500_rol },
-	{ 6, &am6500_abs, &op6500_rla },
+	{ 6, &am6500_abs, &op6500_nop },
 
 	// 3x
 	{ 2, &am6500_rel, &op6500_bmi },
 	{ 5, &am6500_indy, &op6500_and },
-	{ 0, NULL, &op6500_jam },
-	{ 8, &am6500_indy, &op6500_rla },
+	{ 0, &am6500_imp, &op6500_nop },
+	{ 8, &am6500_indy, &op6500_nop },
 	{ 4, &am6500_zpx, &op6500_nop },
 	{ 4, &am6500_zpx, &op6500_and },
 	{ 6, &am6500_zpx, &op6500_rol },
-	{ 6, &am6500_zpx, &op6500_rla },
+	{ 6, &am6500_zpx, &op6500_nop },
 	{ 2, &am6500_imp, &op6500_sec },
 	{ 4, &am6500_absy, &op6500_and },
 	{ 2, &am6500_imp, &op6500_nop },
-	{ 7, &am6500_absy, &op6500_rla },
+	{ 7, &am6500_absy, &op6500_nop },
 	{ 4, &am6500_absx, &op6500_nop },
 	{ 4, &am6500_absx, &op6500_and },
 	{ 7, &am6500_absx, &op6500_rol },
-	{ 7, &am6500_absx, &op6500_rla },
+	{ 7, &am6500_absx, &op6500_nop },
 
 	// 4x
 	{ 6, &am6500_imp, &op6500_rti },
 	{ 6, &am6500_indx, &op6500_eor },
-	{ 0, NULL, &op6500_jam },
-	{ 8, &am6500_indx, &op6500_sre },
+	{ 0, &am6500_imp, &op6500_nop },
+	{ 8, &am6500_indx, &op6500_nop },
 	{ 3, &am6500_zp, &op6500_nop },
 	{ 3, &am6500_zp, &op6500_eor },
 	{ 5, &am6500_zp, &op6500_lsr },
-	{ 5, &am6500_zp, &op6500_sre },
+	{ 5, &am6500_zp, &op6500_nop },
 	{ 3, &am6500_imp, &op6500_pha },
 	{ 2, &am6500_imm, &op6500_eor },
 	{ 2, &am6500_imp, &op6500_lsr },
-	{ 2, &am6500_abs, &op6500_alr },
+	{ 2, &am6500_abs, &op6500_nop },
 	{ 3, &am6500_abs, &op6500_jmp },
 	{ 4, &am6500_abs, &op6500_eor },
 	{ 6, &am6500_abs, &op6500_lsr },
-	{ 6, &am6500_abs, &op6500_sre },
+	{ 6, &am6500_abs, &op6500_nop },
 
 	// 5x
 	{ 2, &am6500_rel, &op6500_bvc },
 	{ 5, &am6500_indy, &op6500_eor },
-	{ 0, NULL, &op6500_jam },
-	{ 8, &am6500_indy, &op6500_sre },
+	{ 0, &am6500_imp, &op6500_nop },
+	{ 8, &am6500_indy, &op6500_nop },
 	{ 4, &am6500_zpx, &op6500_nop },
 	{ 4, &am6500_zpx, &op6500_eor },
 	{ 6, &am6500_zpx, &op6500_lsr },
-	{ 6, &am6500_zpx, &op6500_sre },
+	{ 6, &am6500_zpx, &op6500_nop },
 	{ 2, &am6500_imp, &op6500_cli },
 	{ 4, &am6500_absy, &op6500_eor },
 	{ 2, &am6500_imp, &op6500_nop },
-	{ 7, &am6500_absy, &op6500_sre },
+	{ 7, &am6500_absy, &op6500_nop },
 	{ 4, &am6500_absx, &op6500_nop },
 	{ 4, &am6500_absx, &op6500_eor },
 	{ 7, &am6500_absx, &op6500_lsr },
-	{ 7, &am6500_absx, &op6500_sre },
+	{ 7, &am6500_absx, &op6500_nop },
 
 	// 6x
 	{ 6, &am6500_imp, &op6500_rts },
 	{ 6, &am6500_indx, &op6500_adc },
-	{ 0, NULL, &op6500_jam },
-	{ 8, &am6500_indx, &op6500_rra },
+	{ 0, &am6500_imp, &op6500_nop },
+	{ 8, &am6500_indx, &op6500_nop },
 	{ 3, &am6500_zp, &op6500_nop },
 	{ 3, &am6500_zp, &op6500_adc },
 	{ 5, &am6500_zp, &op6500_ror },
-	{ 5, &am6500_zp, &op6500_rra },
+	{ 5, &am6500_zp, &op6500_nop },
 	{ 4, &am6500_imp, &op6500_pla },
 	{ 2, &am6500_imm, &op6500_adc },
 	{ 2, &am6500_imp, &op6500_ror },
-	{ 2, &am6500_imm, &op6500_arr },
+	{ 2, &am6500_imm, &op6500_nop },
 	{ 5, &am6500_ind, &op6500_jmp },
 	{ 4, &am6500_abs, &op6500_adc },
 	{ 6, &am6500_abs, &op6500_ror },
-	{ 6, &am6500_abs, &op6500_rra },
+	{ 6, &am6500_abs, &op6500_nop },
 
 	// 7x
 	{ 2, &am6500_rel, &op6500_bvs },
 	{ 5, &am6500_indy, &op6500_adc },
-	{ 0, NULL, &op6500_jam },
-	{ 8, &am6500_indy, &op6500_rra },
+	{ 0, &am6500_imp, &op6500_nop },
+	{ 8, &am6500_indy, &op6500_nop },
 	{ 4, &am6500_zpx, &op6500_nop },
 	{ 4, &am6500_zpx, &op6500_adc },
 	{ 6, &am6500_zpx, &op6500_ror },
-	{ 6, &am6500_zpx, &op6500_rra },
+	{ 6, &am6500_zpx, &op6500_nop },
 	{ 2, &am6500_imp, &op6500_sei },
 	{ 4, &am6500_absy, &op6500_adc },
 	{ 2, &am6500_imp, &op6500_nop },
-	{ 7, &am6500_absy, &op6500_rra },
+	{ 7, &am6500_absy, &op6500_nop },
 	{ 4, &am6500_absx, &op6500_nop },
 	{ 4, &am6500_absx, &op6500_adc },
 	{ 7, &am6500_absx, &op6500_ror },
-	{ 7, &am6500_absx, &op6500_rra },
+	{ 7, &am6500_absx, &op6500_nop },
 
 	// 8x
 	{ 2, &am6500_imm, &op6500_nop },
 	{ 6, &am6500_indx, &op6500_sta },
 	{ 2, &am6500_imm, &op6500_nop },
-	{ 6, &am6500_indx, &op6500_sax },
+	{ 6, &am6500_indx, &op6500_nop },
 	{ 3, &am6500_zp, &op6500_sty },
 	{ 3, &am6500_zp, &op6500_sta },
 	{ 3, &am6500_zp, &op6500_stx },
-	{ 3, &am6500_zp, &op6500_sax },
+	{ 3, &am6500_zp, &op6500_nop },
 	{ 2, &am6500_imp, &op6500_dey },
 	{ 2, &am6500_imm, &op6500_nop },
 	{ 2, &am6500_imp, &op6500_txa },
-	{ 2, &am6500_imm, &op6500_ane },
+	{ 2, &am6500_imm, &op6500_nop },
 	{ 4, &am6500_abs, &op6500_sty },
 	{ 4, &am6500_abs, &op6500_sta },
 	{ 4, &am6500_abs, &op6500_stx },
-	{ 4, &am6500_abs, &op6500_sax },
+	{ 4, &am6500_abs, &op6500_nop },
 
 	// 9x
 	{ 2, &am6500_rel, &op6500_bcc },
 	{ 6, &am6500_indy, &op6500_sta },
-	{ 0, NULL, &op6500_jam },
-	{ 6, &am6500_indy, &op6500_sha },
+	{ 0, &am6500_imp, &op6500_nop },
+	{ 6, &am6500_indy, &op6500_nop },
 	{ 4, &am6500_zpx, &op6500_sty },
 	{ 4, &am6500_zpx, &op6500_sta },
 	{ 4, &am6500_zpy, &op6500_stx },
-	{ 4, &am6500_zpy, &op6500_sax },
+	{ 4, &am6500_zpy, &op6500_nop },
 	{ 2, &am6500_imp, &op6500_tya },
 	{ 5, &am6500_absy, &op6500_sta },
 	{ 2, &am6500_imp, &op6500_txs },
-	{ 5, &am6500_absy, &op6500_tas },
-	{ 5, &am6500_absx, &op6500_shy },
+	{ 5, &am6500_absy, &op6500_nop },
+	{ 5, &am6500_absx, &op6500_nop },
 	{ 5, &am6500_absx, &op6500_sta },
-	{ 6, &am6500_absy, &op6500_shx },
-	{ 5, &am6500_absy, &op6500_sha },
+	{ 6, &am6500_absy, &op6500_nop },
+	{ 5, &am6500_absy, &op6500_nop },
 
 	// Ax
 	{ 2, &am6500_imm, &op6500_ldy },
 	{ 6, &am6500_indx, &op6500_lda },
 	{ 2, &am6500_imm, &op6500_ldx },
-	{ 6, &am6500_indx, &op6500_lax },
+	{ 6, &am6500_indx, &op6500_nop },
 	{ 3, &am6500_zp, &op6500_ldy },
 	{ 3, &am6500_zp, &op6500_lda },
 	{ 3, &am6500_zp, &op6500_ldx },
-	{ 3, &am6500_zp, &op6500_lax },
+	{ 3, &am6500_zp, &op6500_nop },
 	{ 2, &am6500_imp, &op6500_tay },
 	{ 2, &am6500_imm, &op6500_lda },
 	{ 2, &am6500_imp, &op6500_tax },
@@ -204,97 +204,97 @@ static const struct _OPCODE
 	{ 4, &am6500_abs, &op6500_ldy },
 	{ 4, &am6500_abs, &op6500_lda },
 	{ 4, &am6500_abs, &op6500_ldx },
-	{ 4, &am6500_abs, &op6500_lax },
+	{ 4, &am6500_abs, &op6500_nop },
 
 	// Bx
 	{ 2, &am6500_rel, &op6500_bcs },
 	{ 5, &am6500_indy, &op6500_lda },
-	{ 0, NULL, &op6500_jam },
-	{ 5, &am6500_indy, &op6500_lax },
+	{ 0, &am6500_imp, &op6500_nop },
+	{ 5, &am6500_indy, &op6500_nop },
 	{ 4, &am6500_zpx, &op6500_ldy },
 	{ 4, &am6500_zpx, &op6500_lda },
 	{ 4, &am6500_zpy, &op6500_ldx },
-	{ 4, &am6500_zpy, &op6500_lax },
+	{ 4, &am6500_zpy, &op6500_nop },
 	{ 2, &am6500_imp, &op6500_clv },
 	{ 4, &am6500_absy, &op6500_lda },
 	{ 2, &am6500_imp, &op6500_tsx },
-	{ 4, &am6500_absy, &op6500_las },
+	{ 4, &am6500_absy, &op6500_nop },
 	{ 4, &am6500_absx, &op6500_ldy },
 	{ 4, &am6500_absx, &op6500_lda },
 	{ 4, &am6500_absy, &op6500_ldx },
-	{ 4, &am6500_absy, &op6500_lax },
+	{ 4, &am6500_absy, &op6500_nop },
 
 	// Cx
 	{ 2, &am6500_imm, &op6500_cpy },
 	{ 6, &am6500_indx, &op6500_cmp },
 	{ 2, &am6500_imm, &op6500_nop },
-	{ 8, &am6500_indx, &op6500_dcp },
+	{ 8, &am6500_indx, &op6500_nop },
 	{ 3, &am6500_zp, &op6500_cpy },
 	{ 3, &am6500_zp, &op6500_cmp },
 	{ 5, &am6500_zp, &op6500_dec },
-	{ 5, &am6500_zp, &op6500_dcp },
+	{ 5, &am6500_zp, &op6500_nop },
 	{ 2, &am6500_imp, &op6500_iny },
 	{ 2, &am6500_imm, &op6500_cmp },
 	{ 2, &am6500_imp, &op6500_dex },
-	{ 2, &am6500_imm, &op6500_sbx },
+	{ 2, &am6500_imm, &op6500_nop },
 	{ 4, &am6500_abs, &op6500_cpy },
 	{ 4, &am6500_abs, &op6500_cmp },
 	{ 6, &am6500_abs, &op6500_dec },
-	{ 6, &am6500_abs, &op6500_dcp },
+	{ 6, &am6500_abs, &op6500_nop },
 
 	// Dx
 	{ 2, &am6500_rel, &op6500_bne },
 	{ 5, &am6500_indy, &op6500_cmp },
-	{ 0, NULL, &op6500_jam },
-	{ 8, &am6500_indy, &op6500_dcp },
+	{ 0, &am6500_imp, &op6500_nop },
+	{ 8, &am6500_indy, &op6500_nop },
 	{ 4, &am6500_zpx, &op6500_nop },
 	{ 4, &am6500_zpx, &op6500_cmp },
 	{ 6, &am6500_zpx, &op6500_dec },
-	{ 6, &am6500_zpx, &op6500_dcp },
+	{ 6, &am6500_zpx, &op6500_nop },
 	{ 2, &am6500_imp, &op6500_cld },
 	{ 4, &am6500_absy, &op6500_cmp },
 	{ 2, &am6500_imp, &op6500_nop },
-	{ 7, &am6500_absy, &op6500_dcp },
+	{ 7, &am6500_absy, &op6500_nop },
 	{ 4, &am6500_absx, &op6500_nop },
 	{ 4, &am6500_absx, &op6500_cmp },
 	{ 7, &am6500_absx, &op6500_dec },
-	{ 7, &am6500_absx, &op6500_dcp },
+	{ 7, &am6500_absx, &op6500_nop },
 
 	// Ex
 	{ 2, &am6500_imm, &op6500_cpx },
 	{ 6, &am6500_indx, &op6500_sbc },
 	{ 2, &am6500_imm, &op6500_nop },
-	{ 8, &am6500_indx, &op6500_isc },
+	{ 8, &am6500_indx, &op6500_nop },
 	{ 3, &am6500_zp, &op6500_cpx },
 	{ 3, &am6500_zp, &op6500_sbc },
 	{ 5, &am6500_zp, &op6500_inc },
-	{ 5, &am6500_zp, &op6500_isc },
+	{ 5, &am6500_zp, &op6500_nop },
 	{ 2, &am6500_imp, &op6500_inx },
 	{ 2, &am6500_imm, &op6500_sbc },
 	{ 2, &am6500_imp, &op6500_nop },
-	{ 2, &am6500_imm, &op6500_usbc },
+	{ 2, &am6500_imm, &op6500_nop },
 	{ 4, &am6500_abs, &op6500_cpx },
 	{ 4, &am6500_abs, &op6500_sbc },
 	{ 6, &am6500_abs, &op6500_inc },
-	{ 6, &am6500_abs, &op6500_isc },
+	{ 6, &am6500_abs, &op6500_nop },
 
 	// Fx
 	{ 2, &am6500_rel, &op6500_beq },
 	{ 5, &am6500_indy, &op6500_sbc },
-	{ 0, NULL, &op6500_jam },
-	{ 4, &am6500_indy, &op6500_isc },
+	{ 0, &am6500_imp, &op6500_nop },
+	{ 4, &am6500_indy, &op6500_nop },
 	{ 4, &am6500_zpx, &op6500_nop },
 	{ 4, &am6500_zpx, &op6500_sbc },
 	{ 6, &am6500_zpx, &op6500_inc },
-	{ 6, &am6500_zpx, &op6500_isc },
+	{ 6, &am6500_zpx, &op6500_nop },
 	{ 2, &am6500_imp, &op6500_sed },
 	{ 4, &am6500_absy, &op6500_sbc },
 	{ 2, &am6500_imp, &op6500_nop },
-	{ 7, &am6500_absy, &op6500_isc },
+	{ 7, &am6500_absy, &op6500_nop },
 	{ 4, &am6500_absx, &op6500_nop },
 	{ 4, &am6500_absx, &op6500_sbc },
 	{ 7, &am6500_absx, &op6500_inc },
-	{ 7, &am6500_absx, &op6500_isc }
+	{ 7, &am6500_absx, &op6500_nop }
 };
 
 void mos6500_clock(MOS_6500 *cpu)
@@ -387,12 +387,6 @@ static inline void interrupt(MOS_6500 *cpu, uint16_t new_abs_addr, uint8_t new_c
 	cpu->regs.c = mos6500_fetch_addr(cpu);
 
 	cpu->cycles = new_cycles;
-}
-
-// Unstable magic value equation for some illegal opcodes
-static inline uint8_t magic(MOS_6500 *cpu)
-{
-	return cpu->regs.a | 255;
 }
 
 // address modes
@@ -974,64 +968,7 @@ uint8_t op6500_tya(MOS_6500 *cpu)
 }
 
 
-// illegal opcodes
-
-uint8_t op6500_alr(MOS_6500 *cpu)
-{
-	return op6500_and(cpu) & op6500_lsr(cpu);
-}
-
-uint8_t op6500_anc(MOS_6500 *cpu)
-{
-	return op6500_and(cpu) & op6500_sec(cpu);
-}
-
-uint8_t op6500_ane(MOS_6500 *cpu)
-{
-	cpu->regs.a = magic(cpu) & cpu->regs.x & mos6500_fetch(cpu);
-	flags_nz(cpu, cpu->regs.a);
-
-	return 0;
-}
-
-uint8_t op6500_arr(MOS_6500 *cpu)
-{
-	return op6500_and(cpu) & op6500_ror(cpu);
-}
-
-uint8_t op6500_dcp(MOS_6500 *cpu)
-{
-	return op6500_dec(cpu) & op6500_cmp(cpu);
-}
-
-uint8_t op6500_isc(MOS_6500 *cpu)
-{
-	return op6500_inc(cpu) & op6500_sbc(cpu);
-}
-
-uint8_t op6500_jam(MOS_6500 *cpu)
-{
-	mos6500_write_last(cpu, 255);
-	while (1) ;
-	return 0;
-}
-
-uint8_t op6500_las(MOS_6500 *cpu)
-{
-	return 0;
-}
-
-uint8_t op6500_lax(MOS_6500 *cpu)
-{
-	return op6500_lda(cpu) & op6500_ldx(cpu);
-}
-
-uint8_t op6500_lxa(MOS_6500 *cpu)
-{
-	cpu->regs.x = cpu->regs.a = magic(cpu) & mos6500_fetch(cpu);
-	flags_nz(cpu, cpu->regs.x);
-	return 0;
-}
+// misc
 
 uint8_t op6500_nop(MOS_6500 *cpu)
 {
@@ -1047,65 +984,4 @@ uint8_t op6500_nop(MOS_6500 *cpu)
 		default:
 			return 0;
 	}
-}
-
-uint8_t op6500_rla(MOS_6500 *cpu)
-{
-	return op6500_rol(cpu) & op6500_and(cpu);
-}
-
-uint8_t op6500_rra(MOS_6500 *cpu)
-{
-	return op6500_ror(cpu) & op6500_adc(cpu);
-}
-
-uint8_t op6500_sax(MOS_6500 *cpu)
-{
-	mos6500_write_last(cpu, cpu->regs.a & cpu->regs.x);
-	return 0;
-}
-
-uint8_t op6500_sbx(MOS_6500 *cpu)
-{
-	cpu->regs.x &= cpu->regs.a;
-	return op6500_sbc(cpu);
-}
-
-uint8_t op6500_sha(MOS_6500 *cpu)
-{
-	mos6500_write_last(cpu, cpu->regs.a & cpu->regs.x & (HI16(cpu->last_abs_addr) + 1));
-	return 0;
-}
-
-uint8_t op6500_shx(MOS_6500 *cpu)
-{
-	mos6500_write_last(cpu, cpu->regs.x & (HI16(cpu->last_abs_addr) + 1));
-	return 0;
-}
-
-uint8_t op6500_shy(MOS_6500 *cpu)
-{
-	mos6500_write_last(cpu, cpu->regs.y & (HI16(cpu->last_abs_addr) + 1));
-	return 0;
-}
-
-uint8_t op6500_slo(MOS_6500 *cpu)
-{
-	return op6500_asl(cpu) & op6500_ora(cpu);
-}
-
-uint8_t op6500_sre(MOS_6500 *cpu)
-{
-	return op6500_lsr(cpu) & op6500_eor(cpu);
-}
-
-uint8_t op6500_tas(MOS_6500 *cpu)
-{
-	cpu->regs.s = cpu->regs.a & cpu->regs.x;
-	mos6500_write_last(cpu, cpu->regs.a & cpu->regs.x & (HI16(cpu->last_abs_addr) + 1));
-}
-
-uint8_t op6500_usbc(MOS_6500 *cpu)
-{
-	return op6500_sbc(cpu) & op6500_nop(cpu);
 }
