@@ -19,17 +19,22 @@ static const NES_MAPPER CHR_MAPPERS[] =
 NES_ROM * nes_rom_alloc(NES *nes, const char *filepath)
 {
 	FILE *f = fopen(filepath, "rb");
-	NES_ROM_HEADER header;
+	if (!f) return NULL;
 
+	NES_ROM *rom = (NES_ROM *)malloc(sizeof(NES_ROM));
+	if (!rom) return NULL;
+
+	fseek(f, 0, SEEK_END);
+	rom->size = ftell(f) - sizeof(NES_ROM_HEADER);
+	rewind(f);
+
+	NES_ROM_HEADER header;
 	fread(&header, sizeof(NES_ROM_HEADER), 1, f);
 
 	if (strncmp(header.magic, "NES\x1A", 4) != 0 || !filepath)
 		fclose(f);
 
 	// Mapper must be identified first so that we can initialise everything correctly
-	NES_ROM *rom = (NES_ROM *)malloc(sizeof(NES_ROM));
-	if (!rom) return NULL;
-
 	rom->mapper_id = ((header.mapper_info & 240) << 4) | ((header.mapper_info & 7680) >> 9);
 	rom->prg_map = PRG_MAPPERS[rom->mapper_id];
 	rom->chr_map = CHR_MAPPERS[rom->mapper_id];
@@ -37,14 +42,12 @@ NES_ROM * nes_rom_alloc(NES *nes, const char *filepath)
 	// ignore trainer, if present
 	if (header.mapper_info & MI_TRAINER) fseek(f, 512, SEEK_CUR);
 
-	fread(&nes->bus->ram[32768], 16384, header.prg_pages, f);
-	fread(nes->ppu->bus->ram, 8192, header.chr_pages > 1 ? header.chr_pages : 1, f);
-
+	rom->data = (uint8_t *)calloc(1, rom->size);
+	fread(rom->data, rom->size, 1, f);
 	fclose(f);
 
 	rom->header = header;
 
-	mos6500_map(nes->cpu, 32768, 65535);
 	nes->rom->ppu_node->ram_offset = 0;
 	nes->rom->ppu_node->ram_size = 8192;
 
@@ -64,7 +67,7 @@ void nes_rom_free(NES *nes)
 	nes->rom = NULL;
 }
 
-void nes_print_rom_info(const NES_ROM *rom)
+void nes_rom_print_info(const NES_ROM *rom)
 {
 	if (!rom) return;
 

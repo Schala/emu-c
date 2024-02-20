@@ -4,360 +4,373 @@
 #include "disasm.h"
 #include "isa.h"
 
-// Metadata for the CPU's various operations
-static const struct _OPCODE
+
+#define DISASM_STR_LEN 128
+
+
+struct _MOS6500Disasm
 {
-	const char *sym; // mnemonic for (dis)assembly
-	const uint8_t (*mode)(MOS_6500 *);
-} OPCODE[] = {
-	// 0x
-	{ "BRK", &am6500_imp },
-	{ "ORA", &am6500_indx },
-	{ "NOP", &am6500_imp },
-	{ "NOP", &am6500_indx },
-	{ "NOP", &am6500_zp },
-	{ "ORA", &am6500_zp },
-	{ "ASL", &am6500_zp },
-	{ "NOP", &am6500_zp },
-	{ "PHP", &am6500_imp },
-	{ "ORA", &am6500_imm },
-	{ "ASL", &am6500_imp },
-	{ "NOP", &am6500_imm },
-	{ "NOP", &am6500_abs },
-	{ "ORA", &am6500_abs },
-	{ "ASL", &am6500_abs },
-	{ "NOP", &am6500_abs },
-
-	// 1x
-	{ "BPL", &am6500_rel },
-	{ "ORA", &am6500_indy },
-	{ "NOP", &am6500_imp },
-	{ "NOP", &am6500_indy },
-	{ "NOP", &am6500_zpx },
-	{ "ORA", &am6500_zpx },
-	{ "ASL", &am6500_zpx },
-	{ "NOP", &am6500_zpx },
-	{ "CLC", &am6500_imp },
-	{ "ORA", &am6500_absy },
-	{ "NOP", &am6500_imp },
-	{ "NOP", &am6500_absy },
-	{ "NOP", &am6500_absx },
-	{ "ORA", &am6500_absx },
-	{ "ASL", &am6500_absx },
-	{ "NOP", &am6500_absx },
-
-	// 2x
-	{ "JSR", &am6500_abs },
-	{ "AND", &am6500_indx },
-	{ "NOP", &am6500_imp },
-	{ "NOP", &am6500_indx },
-	{ "BIT", &am6500_zp },
-	{ "AND", &am6500_zp },
-	{ "ROL", &am6500_zp },
-	{ "NOP", &am6500_zp },
-	{ "PLP", &am6500_imp },
-	{ "AND", &am6500_imm },
-	{ "ROL", &am6500_imp },
-	{ "NOP", &am6500_imm },
-	{ "BIT", &am6500_abs },
-	{ "AND", &am6500_abs },
-	{ "ROL", &am6500_abs },
-	{ "NOP", &am6500_abs },
-
-	// 3x
-	{ "BMI", &am6500_rel },
-	{ "AND", &am6500_indy },
-	{ "NOP", &am6500_imp },
-	{ "NOP", &am6500_indy },
-	{ "NOP", &am6500_zpx },
-	{ "AND", &am6500_zpx },
-	{ "ROL", &am6500_zpx },
-	{ "NOP", &am6500_zpx },
-	{ "SEC", &am6500_imp },
-	{ "AND", &am6500_absy },
-	{ "NOP", &am6500_imp },
-	{ "NOP", &am6500_absy },
-	{ "NOP", &am6500_absx },
-	{ "AND", &am6500_absx },
-	{ "ROL", &am6500_absx },
-	{ "NOP", &am6500_absx },
-
-	// 4x
-	{ "RTI", &am6500_imp },
-	{ "EOR", &am6500_indx },
-	{ "NOP", &am6500_imp },
-	{ "NOP", &am6500_indx },
-	{ "NOP", &am6500_zp },
-	{ "EOR", &am6500_zp },
-	{ "LSR", &am6500_zp },
-	{ "NOP", &am6500_zp },
-	{ "PHA", &am6500_imp },
-	{ "EOR", &am6500_imm },
-	{ "LSR", &am6500_imp },
-	{ "NOP", &am6500_abs },
-	{ "JMP", &am6500_abs },
-	{ "EOR", &am6500_abs },
-	{ "LSR", &am6500_abs },
-	{ "NOP", &am6500_abs },
-
-	// 5x
-	{ "BVC", &am6500_rel },
-	{ "EOR", &am6500_indy },
-	{ "NOP", &am6500_imp },
-	{ "NOP", &am6500_indy },
-	{ "NOP", &am6500_zpx },
-	{ "EOR", &am6500_zpx },
-	{ "LSR", &am6500_zpx },
-	{ "NOP", &am6500_zpx },
-	{ "CLI", &am6500_imp },
-	{ "EOR", &am6500_absy },
-	{ "NOP", &am6500_imp },
-	{ "NOP", &am6500_absy },
-	{ "NOP", &am6500_absx },
-	{ "EOR", &am6500_absx },
-	{ "LSR", &am6500_absx },
-	{ "NOP", &am6500_absx },
-
-	// 6x
-	{ "RTS", &am6500_imp },
-	{ "ADC", &am6500_indx },
-	{ "NOP", &am6500_imp },
-	{ "NOP", &am6500_indx },
-	{ "NOP", &am6500_zp },
-	{ "ADC", &am6500_zp },
-	{ "ROR", &am6500_zp },
-	{ "NOP", &am6500_zp },
-	{ "PLA", &am6500_imp },
-	{ "ADC", &am6500_imm },
-	{ "ROR", &am6500_imp },
-	{ "ARR", &am6500_imm },
-	{ "JMP", &am6500_ind },
-	{ "ADC", &am6500_abs },
-	{ "ROR", &am6500_abs },
-	{ "NOP", &am6500_abs },
-
-	// 7x
-	{ "BVS", &am6500_rel },
-	{ "ADC", &am6500_indy },
-	{ "NOP", &am6500_imp },
-	{ "NOP", &am6500_indy },
-	{ "NOP", &am6500_zpx },
-	{ "ADC", &am6500_zpx },
-	{ "ROR", &am6500_zpx },
-	{ "NOP", &am6500_zpx },
-	{ "SEI", &am6500_imp },
-	{ "ADC", &am6500_absy },
-	{ "NOP", &am6500_imp },
-	{ "NOP", &am6500_absy },
-	{ "NOP", &am6500_absx },
-	{ "ADC", &am6500_absx },
-	{ "ROR", &am6500_absx },
-	{ "NOP", &am6500_absx },
-
-	// 8x
-	{ "NOP", &am6500_imm },
-	{ "STA", &am6500_indx },
-	{ "NOP", &am6500_imm },
-	{ "NOP", &am6500_indx },
-	{ "STY", &am6500_zp },
-	{ "STA", &am6500_zp },
-	{ "STX", &am6500_zp },
-	{ "NOP", &am6500_zp },
-	{ "DEY", &am6500_imp },
-	{ "NOP", &am6500_imm },
-	{ "TXA", &am6500_imp },
-	{ "NOP", &am6500_imm },
-	{ "STY", &am6500_abs },
-	{ "STA", &am6500_abs },
-	{ "STX", &am6500_abs },
-	{ "NOP", &am6500_abs },
-
-	// 9x
-	{ "BCC", &am6500_rel },
-	{ "STA", &am6500_indy },
-	{ "NOP", &am6500_imp },
-	{ "NOP", &am6500_indy },
-	{ "STY", &am6500_zpx },
-	{ "STA", &am6500_zpx },
-	{ "STX", &am6500_zpy },
-	{ "NOP", &am6500_zpy },
-	{ "TYA", &am6500_imp },
-	{ "STA", &am6500_absy },
-	{ "TXS", &am6500_imp },
-	{ "TAS", &am6500_absy },
-	{ "NOP", &am6500_absx },
-	{ "STA", &am6500_absx },
-	{ "NOP", &am6500_absy },
-	{ "NOP", &am6500_absy },
-
-	// Ax
-	{ "LDY", &am6500_imm },
-	{ "LDA", &am6500_indx },
-	{ "LDX", &am6500_imm },
-	{ "NOP", &am6500_indx },
-	{ "LDY", &am6500_zp },
-	{ "LDA", &am6500_zp },
-	{ "LDX", &am6500_zp },
-	{ "NOP", &am6500_zp },
-	{ "TAY", &am6500_imp },
-	{ "LDA", &am6500_imm },
-	{ "TAX", &am6500_imp },
-	{ "NOP", &am6500_imm },
-	{ "LDY", &am6500_abs },
-	{ "LDA", &am6500_abs },
-	{ "LDX", &am6500_abs },
-	{ "NOP", &am6500_abs },
-
-	// Bx
-	{ "BCS", &am6500_rel },
-	{ "LDA", &am6500_indy },
-	{ "NOP", &am6500_imp },
-	{ "NOP", &am6500_indy },
-	{ "LDY", &am6500_zpx },
-	{ "LDA", &am6500_zpx },
-	{ "LDX", &am6500_zpy },
-	{ "NOP", &am6500_zpy },
-	{ "CLV", &am6500_imp },
-	{ "LDA", &am6500_absy },
-	{ "TSX", &am6500_imp },
-	{ "NOP", &am6500_absy },
-	{ "LDY", &am6500_absx },
-	{ "LDA", &am6500_absx },
-	{ "LDX", &am6500_absy },
-	{ "NOP", &am6500_absy },
-
-	// Cx
-	{ "CPY", &am6500_imm },
-	{ "CMP", &am6500_indx },
-	{ "NOP", &am6500_imm },
-	{ "NOP", &am6500_indx },
-	{ "CPY", &am6500_zp },
-	{ "CMP", &am6500_zp },
-	{ "DEC", &am6500_zp },
-	{ "NOP", &am6500_zp },
-	{ "INY", &am6500_imp },
-	{ "CMP", &am6500_imm },
-	{ "DEX", &am6500_imp },
-	{ "NOP", &am6500_imm },
-	{ "CPY", &am6500_abs },
-	{ "CMP", &am6500_abs },
-	{ "DEC", &am6500_abs },
-	{ "NOP", &am6500_abs },
-
-	// Dx
-	{ "BNE", &am6500_rel },
-	{ "CMP", &am6500_indy },
-	{ "NOP", &am6500_imp },
-	{ "NOP", &am6500_indy },
-	{ "NOP", &am6500_zpx },
-	{ "CMP", &am6500_zpx },
-	{ "DEC", &am6500_zpx },
-	{ "NOP", &am6500_zpx },
-	{ "CLD", &am6500_imp },
-	{ "CMP", &am6500_absy },
-	{ "NOP", &am6500_imp },
-	{ "NOP", &am6500_absy },
-	{ "NOP", &am6500_absx },
-	{ "CMP", &am6500_absx },
-	{ "DEC", &am6500_absx },
-	{ "NOP", &am6500_absx },
-
-	// Ex
-	{ "CPX", &am6500_imm },
-	{ "SBC", &am6500_indx },
-	{ "NOP", &am6500_imm },
-	{ "NOP", &am6500_indx },
-	{ "CPX", &am6500_zp },
-	{ "SBC", &am6500_zp },
-	{ "INC", &am6500_zp },
-	{ "NOP", &am6500_zp },
-	{ "INX", &am6500_imp },
-	{ "SBC", &am6500_imm },
-	{ "NOP", &am6500_imp },
-	{ "NOP", &am6500_imm },
-	{ "CPX", &am6500_abs },
-	{ "SBC", &am6500_abs },
-	{ "INC", &am6500_abs },
-	{ "NOP", &am6500_abs },
-
-	// Fx
-	{ "BEQ", &am6500_rel },
-	{ "SBC", &am6500_indy },
-	{ "NOP", &am6500_imp },
-	{ "NOP", &am6500_indy },
-	{ "NOP", &am6500_zpx },
-	{ "SBC", &am6500_zpx },
-	{ "INC", &am6500_zpx },
-	{ "NOP", &am6500_zpx },
-	{ "SED", &am6500_imp },
-	{ "SBC", &am6500_absy },
-	{ "NOP", &am6500_imp },
-	{ "NOP", &am6500_absy },
-	{ "NOP", &am6500_absx },
-	{ "SBC", &am6500_absx },
-	{ "INC", &am6500_absx },
-	{ "NOP", &am6500_absx }
+	char lhs[DISASM_STR_LEN];
+	char rhs[DISASM_STR_LEN];
+	u16 addr;
+	struct _MOS6500Disasm *next;
 };
 
-DISASM_6500 * disasm6500_op(uint8_t *start, uint16_t *offset)
+
+// Metadata for the CPU's various operations
+static const struct _Opcode
 {
-	DISASM_6500 *disasm = (DISASM_6500 *)calloc(1, sizeof(DISASM_6500));
-	const struct _OPCODE *op = &OPCODE[start[*offset++]];
+	const char *sym; // mnemonic for (dis)assembly
+	const u8 (*mode)(MOS6500 *);
+} _opcode[] = {
+	// 0x
+	{ "BRK", &mos6500Implied },
+	{ "ORA", &mos6500IndirectX },
+	{ "NOP", &mos6500Implied },
+	{ "NOP", &mos6500IndirectX },
+	{ "NOP", &mos6500ZeroPage },
+	{ "ORA", &mos6500ZeroPage },
+	{ "ASL", &mos6500ZeroPage },
+	{ "NOP", &mos6500ZeroPage },
+	{ "PHP", &mos6500Implied },
+	{ "ORA", &mos6500Immediate },
+	{ "ASL", &mos6500Implied },
+	{ "NOP", &mos6500Immediate },
+	{ "NOP", &mos6500Absolute },
+	{ "ORA", &mos6500Absolute },
+	{ "ASL", &mos6500Absolute },
+	{ "NOP", &mos6500Absolute },
+
+	// 1x
+	{ "BPL", &mos6500Relative },
+	{ "ORA", &mos6500IndirectY },
+	{ "NOP", &mos6500Implied },
+	{ "NOP", &mos6500IndirectY },
+	{ "NOP", &mos6500ZeroPageX },
+	{ "ORA", &mos6500ZeroPageX },
+	{ "ASL", &mos6500ZeroPageX },
+	{ "NOP", &mos6500ZeroPageX },
+	{ "CLC", &mos6500Implied },
+	{ "ORA", &mos6500AbsoluteY },
+	{ "NOP", &mos6500Implied },
+	{ "NOP", &mos6500AbsoluteY },
+	{ "NOP", &mos6500AbsoluteX },
+	{ "ORA", &mos6500AbsoluteX },
+	{ "ASL", &mos6500AbsoluteX },
+	{ "NOP", &mos6500AbsoluteX },
+
+	// 2x
+	{ "JSR", &mos6500Absolute },
+	{ "AND", &mos6500IndirectX },
+	{ "NOP", &mos6500Implied },
+	{ "NOP", &mos6500IndirectX },
+	{ "BIT", &mos6500ZeroPage },
+	{ "AND", &mos6500ZeroPage },
+	{ "ROL", &mos6500ZeroPage },
+	{ "NOP", &mos6500ZeroPage },
+	{ "PLP", &mos6500Implied },
+	{ "AND", &mos6500Immediate },
+	{ "ROL", &mos6500Implied },
+	{ "NOP", &mos6500Immediate },
+	{ "BIT", &mos6500Absolute },
+	{ "AND", &mos6500Absolute },
+	{ "ROL", &mos6500Absolute },
+	{ "NOP", &mos6500Absolute },
+
+	// 3x
+	{ "BMI", &mos6500Relative },
+	{ "AND", &mos6500IndirectY },
+	{ "NOP", &mos6500Implied },
+	{ "NOP", &mos6500IndirectY },
+	{ "NOP", &mos6500ZeroPageX },
+	{ "AND", &mos6500ZeroPageX },
+	{ "ROL", &mos6500ZeroPageX },
+	{ "NOP", &mos6500ZeroPageX },
+	{ "SEC", &mos6500Implied },
+	{ "AND", &mos6500AbsoluteY },
+	{ "NOP", &mos6500Implied },
+	{ "NOP", &mos6500AbsoluteY },
+	{ "NOP", &mos6500AbsoluteX },
+	{ "AND", &mos6500AbsoluteX },
+	{ "ROL", &mos6500AbsoluteX },
+	{ "NOP", &mos6500AbsoluteX },
+
+	// 4x
+	{ "RTI", &mos6500Implied },
+	{ "EOR", &mos6500IndirectX },
+	{ "NOP", &mos6500Implied },
+	{ "NOP", &mos6500IndirectX },
+	{ "NOP", &mos6500ZeroPage },
+	{ "EOR", &mos6500ZeroPage },
+	{ "LSR", &mos6500ZeroPage },
+	{ "NOP", &mos6500ZeroPage },
+	{ "PHA", &mos6500Implied },
+	{ "EOR", &mos6500Immediate },
+	{ "LSR", &mos6500Implied },
+	{ "NOP", &mos6500Absolute },
+	{ "JMP", &mos6500Absolute },
+	{ "EOR", &mos6500Absolute },
+	{ "LSR", &mos6500Absolute },
+	{ "NOP", &mos6500Absolute },
+
+	// 5x
+	{ "BVC", &mos6500Relative },
+	{ "EOR", &mos6500IndirectY },
+	{ "NOP", &mos6500Implied },
+	{ "NOP", &mos6500IndirectY },
+	{ "NOP", &mos6500ZeroPageX },
+	{ "EOR", &mos6500ZeroPageX },
+	{ "LSR", &mos6500ZeroPageX },
+	{ "NOP", &mos6500ZeroPageX },
+	{ "CLI", &mos6500Implied },
+	{ "EOR", &mos6500AbsoluteY },
+	{ "NOP", &mos6500Implied },
+	{ "NOP", &mos6500AbsoluteY },
+	{ "NOP", &mos6500AbsoluteX },
+	{ "EOR", &mos6500AbsoluteX },
+	{ "LSR", &mos6500AbsoluteX },
+	{ "NOP", &mos6500AbsoluteX },
+
+	// 6x
+	{ "RTS", &mos6500Implied },
+	{ "ADC", &mos6500IndirectX },
+	{ "NOP", &mos6500Implied },
+	{ "NOP", &mos6500IndirectX },
+	{ "NOP", &mos6500ZeroPage },
+	{ "ADC", &mos6500ZeroPage },
+	{ "ROR", &mos6500ZeroPage },
+	{ "NOP", &mos6500ZeroPage },
+	{ "PLA", &mos6500Implied },
+	{ "ADC", &mos6500Immediate },
+	{ "ROR", &mos6500Implied },
+	{ "ARR", &mos6500Immediate },
+	{ "JMP", &mos6500Indirect },
+	{ "ADC", &mos6500Absolute },
+	{ "ROR", &mos6500Absolute },
+	{ "NOP", &mos6500Absolute },
+
+	// 7x
+	{ "BVS", &mos6500Relative },
+	{ "ADC", &mos6500IndirectY },
+	{ "NOP", &mos6500Implied },
+	{ "NOP", &mos6500IndirectY },
+	{ "NOP", &mos6500ZeroPageX },
+	{ "ADC", &mos6500ZeroPageX },
+	{ "ROR", &mos6500ZeroPageX },
+	{ "NOP", &mos6500ZeroPageX },
+	{ "SEI", &mos6500Implied },
+	{ "ADC", &mos6500AbsoluteY },
+	{ "NOP", &mos6500Implied },
+	{ "NOP", &mos6500AbsoluteY },
+	{ "NOP", &mos6500AbsoluteX },
+	{ "ADC", &mos6500AbsoluteX },
+	{ "ROR", &mos6500AbsoluteX },
+	{ "NOP", &mos6500AbsoluteX },
+
+	// 8x
+	{ "NOP", &mos6500Immediate },
+	{ "STA", &mos6500IndirectX },
+	{ "NOP", &mos6500Immediate },
+	{ "NOP", &mos6500IndirectX },
+	{ "STY", &mos6500ZeroPage },
+	{ "STA", &mos6500ZeroPage },
+	{ "STX", &mos6500ZeroPage },
+	{ "NOP", &mos6500ZeroPage },
+	{ "DEY", &mos6500Implied },
+	{ "NOP", &mos6500Immediate },
+	{ "TXA", &mos6500Implied },
+	{ "NOP", &mos6500Immediate },
+	{ "STY", &mos6500Absolute },
+	{ "STA", &mos6500Absolute },
+	{ "STX", &mos6500Absolute },
+	{ "NOP", &mos6500Absolute },
+
+	// 9x
+	{ "BCC", &mos6500Relative },
+	{ "STA", &mos6500IndirectY },
+	{ "NOP", &mos6500Implied },
+	{ "NOP", &mos6500IndirectY },
+	{ "STY", &mos6500ZeroPageX },
+	{ "STA", &mos6500ZeroPageX },
+	{ "STX", &mos6500ZeroPagey },
+	{ "NOP", &mos6500ZeroPagey },
+	{ "TYA", &mos6500Implied },
+	{ "STA", &mos6500AbsoluteY },
+	{ "TXS", &mos6500Implied },
+	{ "TAS", &mos6500AbsoluteY },
+	{ "NOP", &mos6500AbsoluteX },
+	{ "STA", &mos6500AbsoluteX },
+	{ "NOP", &mos6500AbsoluteY },
+	{ "NOP", &mos6500AbsoluteY },
+
+	// Ax
+	{ "LDY", &mos6500Immediate },
+	{ "LDA", &mos6500IndirectX },
+	{ "LDX", &mos6500Immediate },
+	{ "NOP", &mos6500IndirectX },
+	{ "LDY", &mos6500ZeroPage },
+	{ "LDA", &mos6500ZeroPage },
+	{ "LDX", &mos6500ZeroPage },
+	{ "NOP", &mos6500ZeroPage },
+	{ "TAY", &mos6500Implied },
+	{ "LDA", &mos6500Immediate },
+	{ "TAX", &mos6500Implied },
+	{ "NOP", &mos6500Immediate },
+	{ "LDY", &mos6500Absolute },
+	{ "LDA", &mos6500Absolute },
+	{ "LDX", &mos6500Absolute },
+	{ "NOP", &mos6500Absolute },
+
+	// Bx
+	{ "BCS", &mos6500Relative },
+	{ "LDA", &mos6500IndirectY },
+	{ "NOP", &mos6500Implied },
+	{ "NOP", &mos6500IndirectY },
+	{ "LDY", &mos6500ZeroPageX },
+	{ "LDA", &mos6500ZeroPageX },
+	{ "LDX", &mos6500ZeroPagey },
+	{ "NOP", &mos6500ZeroPagey },
+	{ "CLV", &mos6500Implied },
+	{ "LDA", &mos6500AbsoluteY },
+	{ "TSX", &mos6500Implied },
+	{ "NOP", &mos6500AbsoluteY },
+	{ "LDY", &mos6500AbsoluteX },
+	{ "LDA", &mos6500AbsoluteX },
+	{ "LDX", &mos6500AbsoluteY },
+	{ "NOP", &mos6500AbsoluteY },
+
+	// Cx
+	{ "CPY", &mos6500Immediate },
+	{ "CMP", &mos6500IndirectX },
+	{ "NOP", &mos6500Immediate },
+	{ "NOP", &mos6500IndirectX },
+	{ "CPY", &mos6500ZeroPage },
+	{ "CMP", &mos6500ZeroPage },
+	{ "DEC", &mos6500ZeroPage },
+	{ "NOP", &mos6500ZeroPage },
+	{ "INY", &mos6500Implied },
+	{ "CMP", &mos6500Immediate },
+	{ "DEX", &mos6500Implied },
+	{ "NOP", &mos6500Immediate },
+	{ "CPY", &mos6500Absolute },
+	{ "CMP", &mos6500Absolute },
+	{ "DEC", &mos6500Absolute },
+	{ "NOP", &mos6500Absolute },
+
+	// Dx
+	{ "BNE", &mos6500Relative },
+	{ "CMP", &mos6500IndirectY },
+	{ "NOP", &mos6500Implied },
+	{ "NOP", &mos6500IndirectY },
+	{ "NOP", &mos6500ZeroPageX },
+	{ "CMP", &mos6500ZeroPageX },
+	{ "DEC", &mos6500ZeroPageX },
+	{ "NOP", &mos6500ZeroPageX },
+	{ "CLD", &mos6500Implied },
+	{ "CMP", &mos6500AbsoluteY },
+	{ "NOP", &mos6500Implied },
+	{ "NOP", &mos6500AbsoluteY },
+	{ "NOP", &mos6500AbsoluteX },
+	{ "CMP", &mos6500AbsoluteX },
+	{ "DEC", &mos6500AbsoluteX },
+	{ "NOP", &mos6500AbsoluteX },
+
+	// Ex
+	{ "CPX", &mos6500Immediate },
+	{ "SBC", &mos6500IndirectX },
+	{ "NOP", &mos6500Immediate },
+	{ "NOP", &mos6500IndirectX },
+	{ "CPX", &mos6500ZeroPage },
+	{ "SBC", &mos6500ZeroPage },
+	{ "INC", &mos6500ZeroPage },
+	{ "NOP", &mos6500ZeroPage },
+	{ "INX", &mos6500Implied },
+	{ "SBC", &mos6500Immediate },
+	{ "NOP", &mos6500Implied },
+	{ "NOP", &mos6500Immediate },
+	{ "CPX", &mos6500Absolute },
+	{ "SBC", &mos6500Absolute },
+	{ "INC", &mos6500Absolute },
+	{ "NOP", &mos6500Absolute },
+
+	// Fx
+	{ "BEQ", &mos6500Relative },
+	{ "SBC", &mos6500IndirectY },
+	{ "NOP", &mos6500Implied },
+	{ "NOP", &mos6500IndirectY },
+	{ "NOP", &mos6500ZeroPageX },
+	{ "SBC", &mos6500ZeroPageX },
+	{ "INC", &mos6500ZeroPageX },
+	{ "NOP", &mos6500ZeroPageX },
+	{ "SED", &mos6500Implied },
+	{ "SBC", &mos6500AbsoluteY },
+	{ "NOP", &mos6500Implied },
+	{ "NOP", &mos6500AbsoluteY },
+	{ "NOP", &mos6500AbsoluteX },
+	{ "SBC", &mos6500AbsoluteX },
+	{ "INC", &mos6500AbsoluteX },
+	{ "NOP", &mos6500AbsoluteX }
+};
+
+MOS6500Disasm * mos6500DisasmOp(const hxbuf buf, size_t *offset)
+{
+	MOS6500Disasm *disasm = (MOS6500Disasm *)hxAlloc(sizeof(MOS6500Disasm);
+	const struct _Opcode *op = &OPCODE[buf[*offset++]];
 
 	disasm->addr = *offset;
 
-	sprintf((char *)&disasm->lhs, "%s", op->sym);
+	sprintf(HXSTR(&disasm->lhs), "%s", op->sym);
 
-	if (op->mode == &am6500_imm)
-		sprintf((char *)&disasm->rhs, "#$%02X", start[*offset++]);
-	else if (op->mode == &am6500_zp)
-		sprintf((char *)&disasm->rhs, "$%02X", start[*offset++]);
-	else if (op->mode == &am6500_zpx)
-		sprintf((char *)&disasm->rhs, "$%02X, X", start[*offset++]);
-	else if (op->mode == &am6500_zpy)
-		sprintf((char *)&disasm->rhs, "$%02X, Y", start[*offset++]);
-	else if (op->mode == &am6500_indx)
-		sprintf((char *)&disasm->rhs, "($%02X, X)", start[*offset++]);
-	else if (op->mode == &am6500_indy)
-		sprintf((char *)&disasm->rhs, "($%02X, Y)", start[*offset++]);
-	else if (op->mode == &am6500_abs)
-		sprintf((char *)&disasm->rhs, "$%04X", start[*offset++] | (start[*offset++] << 8));
-	else if (op->mode == &am6500_absx)
-		sprintf((char *)&disasm->rhs, "$%04X, X", start[*offset++] | (start[*offset++] << 8));
-	else if (op->mode == &am6500_absy)
-		sprintf((char *)&disasm->rhs, "$%04X, Y", start[*offset++] | (start[*offset++] << 8));
-	else if (op->mode == &am6500_ind)
-		sprintf((char *)&disasm->rhs, "($%04X)", start[*offset++] | (start[*offset++] << 8));
-	else if (op->mode == &am6500_rel)
+	if (op->mode == &mos6500Immediate)
+		sprintf(HXSTR(&disasm->rhs), "#$%02X", buf[*offset++]);
+	else if (op->mode == &mos6500ZeroPage)
+		sprintf(HXSTR(&disasm->rhs), "$%02X", buf[*offset++]);
+	else if (op->mode == &mos6500ZeroPageX)
+		sprintf(HXSTR(&disasm->rhs), "$%02X, X", buf[*offset++]);
+	else if (op->mode == &mos6500ZeroPagey)
+		sprintf(HXSTR(&disasm->rhs), "$%02X, Y", buf[*offset++]);
+	else if (op->mode == &mos6500IndirectX)
+		sprintf(HXSTR(&disasm->rhs), "($%02X, X)", buf[*offset++]);
+	else if (op->mode == &mos6500IndirectY)
+		sprintf(HXSTR(&disasm->rhs), "($%02X, Y)", buf[*offset++]);
+	else if (op->mode == &mos6500Absolute)
+		sprintf(HXSTR(&disasm->rhs), "$%04X", buf[*offset++] | (buf[*offset++] << 8));
+	else if (op->mode == &mos6500AbsoluteX)
+		sprintf(HXSTR(&disasm->rhs), "$%04X, X", buf[*offset++] | (buf[*offset++] << 8));
+	else if (op->mode == &mos6500AbsoluteY)
+		sprintf(HXSTR(&disasm->rhs), "$%04X, Y", buf[*offset++] | (buf[*offset++] << 8));
+	else if (op->mode == &mos6500Indirect)
+		sprintf(HXSTR(&disasm->rhs), "($%04X)", buf[*offset++] | (buf[*offset++] << 8));
+	else if (op->mode == &mos6500Relative)
 	{
-		uint8_t value = start[*offset++];
+		u8 value = buf[*offset++];
 
-		sprintf((char *)&disasm->rhs, "$%02X [$%04X]", value, *offset + (int8_t)value);
+		sprintf(HXSTR(&disasm->rhs), "$%02X [$%04X]", value, *offset + (i8)value);
 	}
 
 	return disasm;
 }
 
-DISASM_6500 * disasm6500_range(uint8_t *start, uint16_t offset, uint16_t end)
+MOS6500Disasm * disasm6500_range(u8 *buf, size_t offset, size_t end)
 {
-	DISASM_6500 *disasm = disasm6500_op(start, &offset);
-	DISASM_6500 *it = disasm;
+	MOS6500Disasm *disasm = disasm6500_op(buf, &offset);
+	MOS6500Disasm *it = disasm;
 
 	while (offset < end)
 	{
-		it->next = disasm6500_op(start, &offset);
+		it->next = disasm6500_op(buf, &offset);
 		it = it->next;
 	}
 
 	return disasm;
 }
 
-void disasm6500_free(DISASM_6500 *disasm)
+void disasm6500_free(MOS6500Disasm *disasm)
 {
 	if (!disasm) return;
 
-	DISASM_6500 *it = NULL;
-	DISASM_6500 *next = disasm;
+	MOS6500Disasm *it = NULL;
+	MOS6500Disasm *next = disasm;
 
 	while (next)
 	{
@@ -367,20 +380,20 @@ void disasm6500_free(DISASM_6500 *disasm)
 	}
 }
 
-const DISASM_6500 * disasm6500_get(DISASM_6500 *disasm, uint16_t index)
+const MOS6500Disasm * disasm6500_get(MOS6500Disasm *disasm, size_t index)
 {
 	if (!disasm) return NULL;
 
-	DISASM_6500 *it = disasm;
+	MOS6500Disasm *it = disasm;
 	while (index--) it = it->next;
 	return it;
 }
 
-void disasm6500_print(DISASM_6500 *disasm)
+void disasm6500_print(MOS6500Disasm *disasm)
 {
 	if (!disasm) return;
 
-	DISASM_6500 *it = disasm;
+	MOS6500Disasm *it = disasm;
 
 	while (it)
 	{

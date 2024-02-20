@@ -9,7 +9,7 @@
 NES * nes_alloc(SDL_Renderer *renderer)
 {
 	NES *nes = (NES *)calloc(1, sizeof(NES));
-	nes->bus = bus6500_alloc(65535);
+	nes->bus = bus6500_alloc(2048);
 	nes_cpu_alloc(nes);
 	ppu2c02_alloc(nes, renderer);
 
@@ -32,7 +32,7 @@ void nes_cpu_alloc(NES *nes)
 {
 	if (!nes) return;
 
-	nes-> cpu = mos6500_alloc(nes->bus, 0, 0);
+	nes-> cpu = mos6500_alloc(nes->bus, 0, 2047);
 }
 
 void nes_free(NES *nes)

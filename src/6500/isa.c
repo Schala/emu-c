@@ -1,467 +1,456 @@
 #include "internal.h"
 #include "isa.h"
 
+#define _HI16(x) ((x) & 0xFF00)
+
 // Metadata for the CPU's various operations
-static const struct _OPCODE
+static const struct
 {
-	uint8_t cycles;
-	const uint8_t (*mode)(MOS_6500 *);
-	const uint8_t (*op)(MOS_6500 *);
-} OPCODE[] = {
+	u8 cycles;
+	const u8 (*mode)(MOS6500 *);
+	const u8 (*op)(MOS6500 *);
+} _opcode[] = {
 	// 0x
-	{ 7, &am6500_imp, &op6500_brk },
-	{ 6, &am6500_indx, &op6500_ora },
-	{ 0, &am6500_imp, &op6500_nop },
-	{ 8, &am6500_indx, &op6500_nop },
-	{ 2, &am6500_zp, &op6500_nop },
-	{ 3, &am6500_zp, &op6500_ora },
-	{ 5, &am6500_zp, &op6500_asl },
-	{ 5, &am6500_zp, &op6500_nop },
-	{ 3, &am6500_imp, &op6500_php },
-	{ 2, &am6500_imm, &op6500_ora },
-	{ 2, &am6500_imp, &op6500_asl },
-	{ 2, &am6500_imm, &op6500_nop },
-	{ 4, &am6500_abs, &op6500_nop },
-	{ 4, &am6500_abs, &op6500_ora },
-	{ 6, &am6500_abs, &op6500_asl },
-	{ 6, &am6500_abs, &op6500_nop },
+	{ 7, &mos6500Implied, &mos6500BRK },
+	{ 6, &mos6500IndirectX, &mos6500ORA },
+	{ 0, &mos6500Implied, &mos6500NOP },
+	{ 8, &mos6500IndirectX, &mos6500NOP },
+	{ 2, &mos6500ZeroPage, &mos6500NOP },
+	{ 3, &mos6500ZeroPage, &mos6500ORA },
+	{ 5, &mos6500ZeroPage, &mos6500ASL },
+	{ 5, &mos6500ZeroPage, &mos6500NOP },
+	{ 3, &mos6500Implied, &mos6500PHP },
+	{ 2, &mos6500Immediate, &mos6500ORA },
+	{ 2, &mos6500Implied, &mos6500ASL },
+	{ 2, &mos6500Immediate, &mos6500NOP },
+	{ 4, &mos6500Absolute, &mos6500NOP },
+	{ 4, &mos6500Absolute, &mos6500ORA },
+	{ 6, &mos6500Absolute, &mos6500ASL },
+	{ 6, &mos6500Absolute, &mos6500NOP },
 
 	// 1x
-	{ 2, &am6500_rel, &op6500_bpl },
-	{ 5, &am6500_indy, &op6500_ora },
-	{ 0, &am6500_imp, &op6500_nop },
-	{ 8, &am6500_indy, &op6500_nop },
-	{ 4, &am6500_zpx, &op6500_nop },
-	{ 4, &am6500_zpx, &op6500_ora },
-	{ 6, &am6500_zpx, &op6500_asl },
-	{ 6, &am6500_zpx, &op6500_nop },
-	{ 2, &am6500_imp, &op6500_clc },
-	{ 4, &am6500_absy, &op6500_ora },
-	{ 2, &am6500_imp, &op6500_nop },
-	{ 7, &am6500_absy, &op6500_nop },
-	{ 4, &am6500_absx, &op6500_nop },
-	{ 4, &am6500_absx, &op6500_ora },
-	{ 7, &am6500_absx, &op6500_asl },
-	{ 7, &am6500_absx, &op6500_nop },
+	{ 2, &mos6500Relative, &mos6500BPL },
+	{ 5, &mos6500IndirectY, &mos6500ORA },
+	{ 0, &mos6500Implied, &mos6500NOP },
+	{ 8, &mos6500IndirectY, &mos6500NOP },
+	{ 4, &mos6500ZeroPageX, &mos6500NOP },
+	{ 4, &mos6500ZeroPageX, &mos6500ORA },
+	{ 6, &mos6500ZeroPageX, &mos6500ASL },
+	{ 6, &mos6500ZeroPageX, &mos6500NOP },
+	{ 2, &mos6500Implied, &mos6500CLC },
+	{ 4, &mos6500AbsoluteY, &mos6500ORA },
+	{ 2, &mos6500Implied, &mos6500NOP },
+	{ 7, &mos6500AbsoluteY, &mos6500NOP },
+	{ 4, &mos6500AbsoluteX, &mos6500NOP },
+	{ 4, &mos6500AbsoluteX, &mos6500ORA },
+	{ 7, &mos6500AbsoluteX, &mos6500ASL },
+	{ 7, &mos6500AbsoluteX, &mos6500NOP },
 
 	// 2x
-	{ 6, &am6500_abs, &op6500_jsr },
-	{ 6, &am6500_indx, &op6500_and },
-	{ 0, &am6500_imp, &op6500_nop },
-	{ 8, &am6500_indx, &op6500_nop },
-	{ 3, &am6500_zp, &op6500_bit },
-	{ 3, &am6500_zp, &op6500_and },
-	{ 5, &am6500_zp, &op6500_rol },
-	{ 5, &am6500_zp, &op6500_nop },
-	{ 4, &am6500_imp, &op6500_plp },
-	{ 2, &am6500_imm, &op6500_and },
-	{ 2, &am6500_imp, &op6500_rol },
-	{ 2, &am6500_imm, &op6500_nop },
-	{ 4, &am6500_abs, &op6500_bit },
-	{ 4, &am6500_abs, &op6500_and },
-	{ 6, &am6500_abs, &op6500_rol },
-	{ 6, &am6500_abs, &op6500_nop },
+	{ 6, &mos6500Absolute, &mos6500JSR },
+	{ 6, &mos6500IndirectX, &mos6500AND },
+	{ 0, &mos6500Implied, &mos6500NOP },
+	{ 8, &mos6500IndirectX, &mos6500NOP },
+	{ 3, &mos6500ZeroPage, &mos6500BIT },
+	{ 3, &mos6500ZeroPage, &mos6500AND },
+	{ 5, &mos6500ZeroPage, &mos6500ROL },
+	{ 5, &mos6500ZeroPage, &mos6500NOP },
+	{ 4, &mos6500Implied, &mos6500PLP },
+	{ 2, &mos6500Immediate, &mos6500AND },
+	{ 2, &mos6500Implied, &mos6500ROL },
+	{ 2, &mos6500Immediate, &mos6500NOP },
+	{ 4, &mos6500Absolute, &mos6500BIT },
+	{ 4, &mos6500Absolute, &mos6500AND },
+	{ 6, &mos6500Absolute, &mos6500ROL },
+	{ 6, &mos6500Absolute, &mos6500NOP },
 
 	// 3x
-	{ 2, &am6500_rel, &op6500_bmi },
-	{ 5, &am6500_indy, &op6500_and },
-	{ 0, &am6500_imp, &op6500_nop },
-	{ 8, &am6500_indy, &op6500_nop },
-	{ 4, &am6500_zpx, &op6500_nop },
-	{ 4, &am6500_zpx, &op6500_and },
-	{ 6, &am6500_zpx, &op6500_rol },
-	{ 6, &am6500_zpx, &op6500_nop },
-	{ 2, &am6500_imp, &op6500_sec },
-	{ 4, &am6500_absy, &op6500_and },
-	{ 2, &am6500_imp, &op6500_nop },
-	{ 7, &am6500_absy, &op6500_nop },
-	{ 4, &am6500_absx, &op6500_nop },
-	{ 4, &am6500_absx, &op6500_and },
-	{ 7, &am6500_absx, &op6500_rol },
-	{ 7, &am6500_absx, &op6500_nop },
+	{ 2, &mos6500Relative, &mos6500BMI },
+	{ 5, &mos6500IndirectY, &mos6500AND },
+	{ 0, &mos6500Implied, &mos6500NOP },
+	{ 8, &mos6500IndirectY, &mos6500NOP },
+	{ 4, &mos6500ZeroPageX, &mos6500NOP },
+	{ 4, &mos6500ZeroPageX, &mos6500AND },
+	{ 6, &mos6500ZeroPageX, &mos6500ROL },
+	{ 6, &mos6500ZeroPageX, &mos6500NOP },
+	{ 2, &mos6500Implied, &mos6500SEC },
+	{ 4, &mos6500AbsoluteY, &mos6500AND },
+	{ 2, &mos6500Implied, &mos6500NOP },
+	{ 7, &mos6500AbsoluteY, &mos6500NOP },
+	{ 4, &mos6500AbsoluteX, &mos6500NOP },
+	{ 4, &mos6500AbsoluteX, &mos6500AND },
+	{ 7, &mos6500AbsoluteX, &mos6500ROL },
+	{ 7, &mos6500AbsoluteX, &mos6500NOP },
 
 	// 4x
-	{ 6, &am6500_imp, &op6500_rti },
-	{ 6, &am6500_indx, &op6500_eor },
-	{ 0, &am6500_imp, &op6500_nop },
-	{ 8, &am6500_indx, &op6500_nop },
-	{ 3, &am6500_zp, &op6500_nop },
-	{ 3, &am6500_zp, &op6500_eor },
-	{ 5, &am6500_zp, &op6500_lsr },
-	{ 5, &am6500_zp, &op6500_nop },
-	{ 3, &am6500_imp, &op6500_pha },
-	{ 2, &am6500_imm, &op6500_eor },
-	{ 2, &am6500_imp, &op6500_lsr },
-	{ 2, &am6500_abs, &op6500_nop },
-	{ 3, &am6500_abs, &op6500_jmp },
-	{ 4, &am6500_abs, &op6500_eor },
-	{ 6, &am6500_abs, &op6500_lsr },
-	{ 6, &am6500_abs, &op6500_nop },
+	{ 6, &mos6500Implied, &mos6500RTI },
+	{ 6, &mos6500IndirectX, &mos6500EOR },
+	{ 0, &mos6500Implied, &mos6500NOP },
+	{ 8, &mos6500IndirectX, &mos6500NOP },
+	{ 3, &mos6500ZeroPage, &mos6500NOP },
+	{ 3, &mos6500ZeroPage, &mos6500EOR },
+	{ 5, &mos6500ZeroPage, &mos6500LSR },
+	{ 5, &mos6500ZeroPage, &mos6500NOP },
+	{ 3, &mos6500Implied, &mos6500PHA },
+	{ 2, &mos6500Immediate, &mos6500EOR },
+	{ 2, &mos6500Implied, &mos6500LSR },
+	{ 2, &mos6500Absolute, &mos6500NOP },
+	{ 3, &mos6500Absolute, &mos6500JMP },
+	{ 4, &mos6500Absolute, &mos6500EOR },
+	{ 6, &mos6500Absolute, &mos6500LSR },
+	{ 6, &mos6500Absolute, &mos6500NOP },
 
 	// 5x
-	{ 2, &am6500_rel, &op6500_bvc },
-	{ 5, &am6500_indy, &op6500_eor },
-	{ 0, &am6500_imp, &op6500_nop },
-	{ 8, &am6500_indy, &op6500_nop },
-	{ 4, &am6500_zpx, &op6500_nop },
-	{ 4, &am6500_zpx, &op6500_eor },
-	{ 6, &am6500_zpx, &op6500_lsr },
-	{ 6, &am6500_zpx, &op6500_nop },
-	{ 2, &am6500_imp, &op6500_cli },
-	{ 4, &am6500_absy, &op6500_eor },
-	{ 2, &am6500_imp, &op6500_nop },
-	{ 7, &am6500_absy, &op6500_nop },
-	{ 4, &am6500_absx, &op6500_nop },
-	{ 4, &am6500_absx, &op6500_eor },
-	{ 7, &am6500_absx, &op6500_lsr },
-	{ 7, &am6500_absx, &op6500_nop },
+	{ 2, &mos6500Relative, &mos6500BVC },
+	{ 5, &mos6500IndirectY, &mos6500EOR },
+	{ 0, &mos6500Implied, &mos6500NOP },
+	{ 8, &mos6500IndirectY, &mos6500NOP },
+	{ 4, &mos6500ZeroPageX, &mos6500NOP },
+	{ 4, &mos6500ZeroPageX, &mos6500EOR },
+	{ 6, &mos6500ZeroPageX, &mos6500LSR },
+	{ 6, &mos6500ZeroPageX, &mos6500NOP },
+	{ 2, &mos6500Implied, &mos6500CLI },
+	{ 4, &mos6500AbsoluteY, &mos6500EOR },
+	{ 2, &mos6500Implied, &mos6500NOP },
+	{ 7, &mos6500AbsoluteY, &mos6500NOP },
+	{ 4, &mos6500AbsoluteX, &mos6500NOP },
+	{ 4, &mos6500AbsoluteX, &mos6500EOR },
+	{ 7, &mos6500AbsoluteX, &mos6500LSR },
+	{ 7, &mos6500AbsoluteX, &mos6500NOP },
 
 	// 6x
-	{ 6, &am6500_imp, &op6500_rts },
-	{ 6, &am6500_indx, &op6500_adc },
-	{ 0, &am6500_imp, &op6500_nop },
-	{ 8, &am6500_indx, &op6500_nop },
-	{ 3, &am6500_zp, &op6500_nop },
-	{ 3, &am6500_zp, &op6500_adc },
-	{ 5, &am6500_zp, &op6500_ror },
-	{ 5, &am6500_zp, &op6500_nop },
-	{ 4, &am6500_imp, &op6500_pla },
-	{ 2, &am6500_imm, &op6500_adc },
-	{ 2, &am6500_imp, &op6500_ror },
-	{ 2, &am6500_imm, &op6500_nop },
-	{ 5, &am6500_ind, &op6500_jmp },
-	{ 4, &am6500_abs, &op6500_adc },
-	{ 6, &am6500_abs, &op6500_ror },
-	{ 6, &am6500_abs, &op6500_nop },
+	{ 6, &mos6500Implied, &mos6500RTS },
+	{ 6, &mos6500IndirectX, &mos6500ADC },
+	{ 0, &mos6500Implied, &mos6500NOP },
+	{ 8, &mos6500IndirectX, &mos6500NOP },
+	{ 3, &mos6500ZeroPage, &mos6500NOP },
+	{ 3, &mos6500ZeroPage, &mos6500ADC },
+	{ 5, &mos6500ZeroPage, &mos6500ROR },
+	{ 5, &mos6500ZeroPage, &mos6500NOP },
+	{ 4, &mos6500Implied, &mos6500PLA },
+	{ 2, &mos6500Immediate, &mos6500ADC },
+	{ 2, &mos6500Implied, &mos6500ROR },
+	{ 2, &mos6500Immediate, &mos6500NOP },
+	{ 5, &mos6500Indirect, &mos6500JMP },
+	{ 4, &mos6500Absolute, &mos6500ADC },
+	{ 6, &mos6500Absolute, &mos6500ROR },
+	{ 6, &mos6500Absolute, &mos6500NOP },
 
 	// 7x
-	{ 2, &am6500_rel, &op6500_bvs },
-	{ 5, &am6500_indy, &op6500_adc },
-	{ 0, &am6500_imp, &op6500_nop },
-	{ 8, &am6500_indy, &op6500_nop },
-	{ 4, &am6500_zpx, &op6500_nop },
-	{ 4, &am6500_zpx, &op6500_adc },
-	{ 6, &am6500_zpx, &op6500_ror },
-	{ 6, &am6500_zpx, &op6500_nop },
-	{ 2, &am6500_imp, &op6500_sei },
-	{ 4, &am6500_absy, &op6500_adc },
-	{ 2, &am6500_imp, &op6500_nop },
-	{ 7, &am6500_absy, &op6500_nop },
-	{ 4, &am6500_absx, &op6500_nop },
-	{ 4, &am6500_absx, &op6500_adc },
-	{ 7, &am6500_absx, &op6500_ror },
-	{ 7, &am6500_absx, &op6500_nop },
+	{ 2, &mos6500Relative, &mos6500BVS },
+	{ 5, &mos6500IndirectY, &mos6500ADC },
+	{ 0, &mos6500Implied, &mos6500NOP },
+	{ 8, &mos6500IndirectY, &mos6500NOP },
+	{ 4, &mos6500ZeroPageX, &mos6500NOP },
+	{ 4, &mos6500ZeroPageX, &mos6500ADC },
+	{ 6, &mos6500ZeroPageX, &mos6500ROR },
+	{ 6, &mos6500ZeroPageX, &mos6500NOP },
+	{ 2, &mos6500Implied, &mos6500SEI },
+	{ 4, &mos6500AbsoluteY, &mos6500ADC },
+	{ 2, &mos6500Implied, &mos6500NOP },
+	{ 7, &mos6500AbsoluteY, &mos6500NOP },
+	{ 4, &mos6500AbsoluteX, &mos6500NOP },
+	{ 4, &mos6500AbsoluteX, &mos6500ADC },
+	{ 7, &mos6500AbsoluteX, &mos6500ROR },
+	{ 7, &mos6500AbsoluteX, &mos6500NOP },
 
 	// 8x
-	{ 2, &am6500_imm, &op6500_nop },
-	{ 6, &am6500_indx, &op6500_sta },
-	{ 2, &am6500_imm, &op6500_nop },
-	{ 6, &am6500_indx, &op6500_nop },
-	{ 3, &am6500_zp, &op6500_sty },
-	{ 3, &am6500_zp, &op6500_sta },
-	{ 3, &am6500_zp, &op6500_stx },
-	{ 3, &am6500_zp, &op6500_nop },
-	{ 2, &am6500_imp, &op6500_dey },
-	{ 2, &am6500_imm, &op6500_nop },
-	{ 2, &am6500_imp, &op6500_txa },
-	{ 2, &am6500_imm, &op6500_nop },
-	{ 4, &am6500_abs, &op6500_sty },
-	{ 4, &am6500_abs, &op6500_sta },
-	{ 4, &am6500_abs, &op6500_stx },
-	{ 4, &am6500_abs, &op6500_nop },
+	{ 2, &mos6500Immediate, &mos6500NOP },
+	{ 6, &mos6500IndirectX, &mos6500STA },
+	{ 2, &mos6500Immediate, &mos6500NOP },
+	{ 6, &mos6500IndirectX, &mos6500NOP },
+	{ 3, &mos6500ZeroPage, &mos6500STY },
+	{ 3, &mos6500ZeroPage, &mos6500STA },
+	{ 3, &mos6500ZeroPage, &mos6500STX },
+	{ 3, &mos6500ZeroPage, &mos6500NOP },
+	{ 2, &mos6500Implied, &mos6500DEY },
+	{ 2, &mos6500Immediate, &mos6500NOP },
+	{ 2, &mos6500Implied, &mos6500TXA },
+	{ 2, &mos6500Immediate, &mos6500NOP },
+	{ 4, &mos6500Absolute, &mos6500STY },
+	{ 4, &mos6500Absolute, &mos6500STA },
+	{ 4, &mos6500Absolute, &mos6500STX },
+	{ 4, &mos6500Absolute, &mos6500NOP },
 
 	// 9x
-	{ 2, &am6500_rel, &op6500_bcc },
-	{ 6, &am6500_indy, &op6500_sta },
-	{ 0, &am6500_imp, &op6500_nop },
-	{ 6, &am6500_indy, &op6500_nop },
-	{ 4, &am6500_zpx, &op6500_sty },
-	{ 4, &am6500_zpx, &op6500_sta },
-	{ 4, &am6500_zpy, &op6500_stx },
-	{ 4, &am6500_zpy, &op6500_nop },
-	{ 2, &am6500_imp, &op6500_tya },
-	{ 5, &am6500_absy, &op6500_sta },
-	{ 2, &am6500_imp, &op6500_txs },
-	{ 5, &am6500_absy, &op6500_nop },
-	{ 5, &am6500_absx, &op6500_nop },
-	{ 5, &am6500_absx, &op6500_sta },
-	{ 6, &am6500_absy, &op6500_nop },
-	{ 5, &am6500_absy, &op6500_nop },
+	{ 2, &mos6500Relative, &mos6500BCC },
+	{ 6, &mos6500IndirectY, &mos6500STA },
+	{ 0, &mos6500Implied, &mos6500NOP },
+	{ 6, &mos6500IndirectY, &mos6500NOP },
+	{ 4, &mos6500ZeroPageX, &mos6500STY },
+	{ 4, &mos6500ZeroPageX, &mos6500STA },
+	{ 4, &mos6500ZeroPageY, &mos6500STX },
+	{ 4, &mos6500ZeroPageY, &mos6500NOP },
+	{ 2, &mos6500Implied, &mos6500TYA },
+	{ 5, &mos6500AbsoluteY, &mos6500STA },
+	{ 2, &mos6500Implied, &mos6500TXS },
+	{ 5, &mos6500AbsoluteY, &mos6500NOP },
+	{ 5, &mos6500AbsoluteX, &mos6500NOP },
+	{ 5, &mos6500AbsoluteX, &mos6500STA },
+	{ 6, &mos6500AbsoluteY, &mos6500NOP },
+	{ 5, &mos6500AbsoluteY, &mos6500NOP },
 
 	// Ax
-	{ 2, &am6500_imm, &op6500_ldy },
-	{ 6, &am6500_indx, &op6500_lda },
-	{ 2, &am6500_imm, &op6500_ldx },
-	{ 6, &am6500_indx, &op6500_nop },
-	{ 3, &am6500_zp, &op6500_ldy },
-	{ 3, &am6500_zp, &op6500_lda },
-	{ 3, &am6500_zp, &op6500_ldx },
-	{ 3, &am6500_zp, &op6500_nop },
-	{ 2, &am6500_imp, &op6500_tay },
-	{ 2, &am6500_imm, &op6500_lda },
-	{ 2, &am6500_imp, &op6500_tax },
-	{ 2, &am6500_imm, &op6500_lxa },
-	{ 4, &am6500_abs, &op6500_ldy },
-	{ 4, &am6500_abs, &op6500_lda },
-	{ 4, &am6500_abs, &op6500_ldx },
-	{ 4, &am6500_abs, &op6500_nop },
+	{ 2, &mos6500Immediate, &mos6500LDY },
+	{ 6, &mos6500IndirectX, &mos6500LDA },
+	{ 2, &mos6500Immediate, &mos6500LDX },
+	{ 6, &mos6500IndirectX, &mos6500NOP },
+	{ 3, &mos6500ZeroPage, &mos6500LDY },
+	{ 3, &mos6500ZeroPage, &mos6500LDA },
+	{ 3, &mos6500ZeroPage, &mos6500LDX },
+	{ 3, &mos6500ZeroPage, &mos6500NOP },
+	{ 2, &mos6500Implied, &mos6500TAY },
+	{ 2, &mos6500Immediate, &mos6500LDA },
+	{ 2, &mos6500Implied, &mos6500TAX },
+	{ 2, &mos6500Immediate, &mos6500LXA },
+	{ 4, &mos6500Absolute, &mos6500LDY },
+	{ 4, &mos6500Absolute, &mos6500LDA },
+	{ 4, &mos6500Absolute, &mos6500LDX },
+	{ 4, &mos6500Absolute, &mos6500NOP },
 
 	// Bx
-	{ 2, &am6500_rel, &op6500_bcs },
-	{ 5, &am6500_indy, &op6500_lda },
-	{ 0, &am6500_imp, &op6500_nop },
-	{ 5, &am6500_indy, &op6500_nop },
-	{ 4, &am6500_zpx, &op6500_ldy },
-	{ 4, &am6500_zpx, &op6500_lda },
-	{ 4, &am6500_zpy, &op6500_ldx },
-	{ 4, &am6500_zpy, &op6500_nop },
-	{ 2, &am6500_imp, &op6500_clv },
-	{ 4, &am6500_absy, &op6500_lda },
-	{ 2, &am6500_imp, &op6500_tsx },
-	{ 4, &am6500_absy, &op6500_nop },
-	{ 4, &am6500_absx, &op6500_ldy },
-	{ 4, &am6500_absx, &op6500_lda },
-	{ 4, &am6500_absy, &op6500_ldx },
-	{ 4, &am6500_absy, &op6500_nop },
+	{ 2, &mos6500Relative, &mos6500BCS },
+	{ 5, &mos6500IndirectY, &mos6500LDA },
+	{ 0, &mos6500Implied, &mos6500NOP },
+	{ 5, &mos6500IndirectY, &mos6500NOP },
+	{ 4, &mos6500ZeroPageX, &mos6500LDY },
+	{ 4, &mos6500ZeroPageX, &mos6500LDA },
+	{ 4, &mos6500ZeroPageY, &mos6500LDX },
+	{ 4, &mos6500ZeroPageY, &mos6500NOP },
+	{ 2, &mos6500Implied, &mos6500CLV },
+	{ 4, &mos6500AbsoluteY, &mos6500LDA },
+	{ 2, &mos6500Implied, &mos6500TSX },
+	{ 4, &mos6500AbsoluteY, &mos6500NOP },
+	{ 4, &mos6500AbsoluteX, &mos6500LDY },
+	{ 4, &mos6500AbsoluteX, &mos6500LDA },
+	{ 4, &mos6500AbsoluteY, &mos6500LDX },
+	{ 4, &mos6500AbsoluteY, &mos6500NOP },
 
 	// Cx
-	{ 2, &am6500_imm, &op6500_cpy },
-	{ 6, &am6500_indx, &op6500_cmp },
-	{ 2, &am6500_imm, &op6500_nop },
-	{ 8, &am6500_indx, &op6500_nop },
-	{ 3, &am6500_zp, &op6500_cpy },
-	{ 3, &am6500_zp, &op6500_cmp },
-	{ 5, &am6500_zp, &op6500_dec },
-	{ 5, &am6500_zp, &op6500_nop },
-	{ 2, &am6500_imp, &op6500_iny },
-	{ 2, &am6500_imm, &op6500_cmp },
-	{ 2, &am6500_imp, &op6500_dex },
-	{ 2, &am6500_imm, &op6500_nop },
-	{ 4, &am6500_abs, &op6500_cpy },
-	{ 4, &am6500_abs, &op6500_cmp },
-	{ 6, &am6500_abs, &op6500_dec },
-	{ 6, &am6500_abs, &op6500_nop },
+	{ 2, &mos6500Immediate, &mos6500CPY },
+	{ 6, &mos6500IndirectX, &mos6500CMP },
+	{ 2, &mos6500Immediate, &mos6500NOP },
+	{ 8, &mos6500IndirectX, &mos6500NOP },
+	{ 3, &mos6500ZeroPage, &mos6500CPY },
+	{ 3, &mos6500ZeroPage, &mos6500CMP },
+	{ 5, &mos6500ZeroPage, &mos6500DEC },
+	{ 5, &mos6500ZeroPage, &mos6500NOP },
+	{ 2, &mos6500Implied, &mos6500INY },
+	{ 2, &mos6500Immediate, &mos6500CMP },
+	{ 2, &mos6500Implied, &mos6500DEX },
+	{ 2, &mos6500Immediate, &mos6500NOP },
+	{ 4, &mos6500Absolute, &mos6500CPY },
+	{ 4, &mos6500Absolute, &mos6500CMP },
+	{ 6, &mos6500Absolute, &mos6500DEC },
+	{ 6, &mos6500Absolute, &mos6500NOP },
 
 	// Dx
-	{ 2, &am6500_rel, &op6500_bne },
-	{ 5, &am6500_indy, &op6500_cmp },
-	{ 0, &am6500_imp, &op6500_nop },
-	{ 8, &am6500_indy, &op6500_nop },
-	{ 4, &am6500_zpx, &op6500_nop },
-	{ 4, &am6500_zpx, &op6500_cmp },
-	{ 6, &am6500_zpx, &op6500_dec },
-	{ 6, &am6500_zpx, &op6500_nop },
-	{ 2, &am6500_imp, &op6500_cld },
-	{ 4, &am6500_absy, &op6500_cmp },
-	{ 2, &am6500_imp, &op6500_nop },
-	{ 7, &am6500_absy, &op6500_nop },
-	{ 4, &am6500_absx, &op6500_nop },
-	{ 4, &am6500_absx, &op6500_cmp },
-	{ 7, &am6500_absx, &op6500_dec },
-	{ 7, &am6500_absx, &op6500_nop },
+	{ 2, &mos6500Relative, &mos6500BNE },
+	{ 5, &mos6500IndirectY, &mos6500CMP },
+	{ 0, &mos6500Implied, &mos6500NOP },
+	{ 8, &mos6500IndirectY, &mos6500NOP },
+	{ 4, &mos6500ZeroPageX, &mos6500NOP },
+	{ 4, &mos6500ZeroPageX, &mos6500CMP },
+	{ 6, &mos6500ZeroPageX, &mos6500DEC },
+	{ 6, &mos6500ZeroPageX, &mos6500NOP },
+	{ 2, &mos6500Implied, &mos6500CLD },
+	{ 4, &mos6500AbsoluteY, &mos6500CMP },
+	{ 2, &mos6500Implied, &mos6500NOP },
+	{ 7, &mos6500AbsoluteY, &mos6500NOP },
+	{ 4, &mos6500AbsoluteX, &mos6500NOP },
+	{ 4, &mos6500AbsoluteX, &mos6500CMP },
+	{ 7, &mos6500AbsoluteX, &mos6500DEC },
+	{ 7, &mos6500AbsoluteX, &mos6500NOP },
 
 	// Ex
-	{ 2, &am6500_imm, &op6500_cpx },
-	{ 6, &am6500_indx, &op6500_sbc },
-	{ 2, &am6500_imm, &op6500_nop },
-	{ 8, &am6500_indx, &op6500_nop },
-	{ 3, &am6500_zp, &op6500_cpx },
-	{ 3, &am6500_zp, &op6500_sbc },
-	{ 5, &am6500_zp, &op6500_inc },
-	{ 5, &am6500_zp, &op6500_nop },
-	{ 2, &am6500_imp, &op6500_inx },
-	{ 2, &am6500_imm, &op6500_sbc },
-	{ 2, &am6500_imp, &op6500_nop },
-	{ 2, &am6500_imm, &op6500_nop },
-	{ 4, &am6500_abs, &op6500_cpx },
-	{ 4, &am6500_abs, &op6500_sbc },
-	{ 6, &am6500_abs, &op6500_inc },
-	{ 6, &am6500_abs, &op6500_nop },
+	{ 2, &mos6500Immediate, &mos6500CPX },
+	{ 6, &mos6500IndirectX, &mos6500SBC },
+	{ 2, &mos6500Immediate, &mos6500NOP },
+	{ 8, &mos6500IndirectX, &mos6500NOP },
+	{ 3, &mos6500ZeroPage, &mos6500CPX },
+	{ 3, &mos6500ZeroPage, &mos6500SBC },
+	{ 5, &mos6500ZeroPage, &mos6500INC },
+	{ 5, &mos6500ZeroPage, &mos6500NOP },
+	{ 2, &mos6500Implied, &mos6500INX },
+	{ 2, &mos6500Immediate, &mos6500SBC },
+	{ 2, &mos6500Implied, &mos6500NOP },
+	{ 2, &mos6500Immediate, &mos6500NOP },
+	{ 4, &mos6500Absolute, &mos6500CPX },
+	{ 4, &mos6500Absolute, &mos6500SBC },
+	{ 6, &mos6500Absolute, &mos6500INC },
+	{ 6, &mos6500Absolute, &mos6500NOP },
 
 	// Fx
-	{ 2, &am6500_rel, &op6500_beq },
-	{ 5, &am6500_indy, &op6500_sbc },
-	{ 0, &am6500_imp, &op6500_nop },
-	{ 4, &am6500_indy, &op6500_nop },
-	{ 4, &am6500_zpx, &op6500_nop },
-	{ 4, &am6500_zpx, &op6500_sbc },
-	{ 6, &am6500_zpx, &op6500_inc },
-	{ 6, &am6500_zpx, &op6500_nop },
-	{ 2, &am6500_imp, &op6500_sed },
-	{ 4, &am6500_absy, &op6500_sbc },
-	{ 2, &am6500_imp, &op6500_nop },
-	{ 7, &am6500_absy, &op6500_nop },
-	{ 4, &am6500_absx, &op6500_nop },
-	{ 4, &am6500_absx, &op6500_sbc },
-	{ 7, &am6500_absx, &op6500_inc },
-	{ 7, &am6500_absx, &op6500_nop }
+	{ 2, &mos6500Relative, &mos6500BEQ },
+	{ 5, &mos6500IndirectY, &mos6500SBC },
+	{ 0, &mos6500Implied, &mos6500NOP },
+	{ 4, &mos6500IndirectY, &mos6500NOP },
+	{ 4, &mos6500ZeroPageX, &mos6500NOP },
+	{ 4, &mos6500ZeroPageX, &mos6500SBC },
+	{ 6, &mos6500ZeroPageX, &mos6500INC },
+	{ 6, &mos6500ZeroPageX, &mos6500NOP },
+	{ 2, &mos6500Implied, &mos6500SED },
+	{ 4, &mos6500AbsoluteY, &mos6500SBC },
+	{ 2, &mos6500Implied, &mos6500NOP },
+	{ 7, &mos6500AbsoluteY, &mos6500NOP },
+	{ 4, &mos6500AbsoluteX, &mos6500NOP },
+	{ 4, &mos6500AbsoluteX, &mos6500SBC },
+	{ 7, &mos6500AbsoluteX, &mos6500INC },
+	{ 7, &mos6500AbsoluteX, &mos6500NOP }
 };
 
-void mos6500_clock(MOS_6500 *cpu)
+void mos6500Clock(MOS6500 *cpu)
 {
 	if (!cpu) return;
 
 	if (cpu->cycles == 0)
 	{
-		set_flag(cpu, P_U, 1); // always set unused flag
+		_setFlag(cpu, P_U, 1); // always set unused flag
 
 		cpu->frame[cpu->frame_index] = cpu->regs.c;
 		cpu->frame_index = cpu->frame_index-- % MOS6500_FRAME_LEN;
 
 		// get and increment the counter
-		cpu->last_op = mos6500_read_rom(cpu);
+		cpu->last_op = mos6500ROMRead(cpu);
 
 		// set cycles, see if any additional cycles are needed
-		cpu->cycles = OPCODE[cpu->last_op].cycles;
-		uint8_t extra1 = OPCODE[cpu->last_op].mode(cpu);
-		uint8_t extra2 = OPCODE[cpu->last_op].op(cpu);
+		cpu->cycles = _opcode[cpu->last_op].cycles;
+		u8 extra1 = _opcode[cpu->last_op].mode(cpu);
+		u8 extra2 = _opcode[cpu->last_op].op(cpu);
 		cpu->cycles += extra1 & extra2;
 
-		set_flag(cpu, P_U, 1); // always set unused flag
+		_setFlag(cpu, P_U, 1); // always set unused flag
 	}
 
 	cpu->cycles--;
 }
 
-uint8_t mos6500_fetch(MOS_6500 *cpu)
+
+u8 mos6500Fetch(MOS6500 *cpu)
 {
 	if (!cpu) return 0;
 
-	if (OPCODE[cpu->last_op].mode != &am6500_imp)
-		cpu->cache = bus6500_read(cpu->bus, bus6500_read_addr(cpu->bus, cpu->last_abs_addr));
+	if (_opcode[cpu->last_op].mode != &mos6500Implied)
+		cpu->cache = mos6500RAMRead(cpu->bus, mos6500ReadAddr(cpu->bus, cpu->last_abs_addr));
 
 	return cpu->cache;
 }
 
-// Common functionality for branch instructions
-static inline void branch(MOS_6500 *cpu)
-{
-	cpu->cycles++;
-	cpu->last_abs_addr = cpu->regs.c + cpu->last_rel_addr;
-
-	// need an additional cycle if different page
-	if (HI16(cpu->last_abs_addr) != HI16(cpu->regs.c))
-		cpu->cycles++;
-
-	// jump to address
-	cpu->regs.c = cpu->last_abs_addr;
-}
-
 // Assign to accumulator, or write to bus, depending on the address mode
-static inline void check_mode(MOS_6500 *cpu, uint16_t value)
+static inline void _checkMode(MOS6500 *cpu, u16 value)
 {
-	if (OPCODE[cpu->last_op].mode == &am6500_imp)
+	if (_opcode[cpu->last_op].mode == &mos6500Implied)
 		cpu->regs.a = value;
 	else
-		mos6500_write_last(cpu, value);
+		mos6500WriteLast(cpu, value);
 }
 
 // Set negative and/or zero bits of state flags register, given a value
-static inline void flags_nz(MOS_6500 *cpu, uint16_t value)
+static inline void _setFlagsNZ(MOS6500 *cpu, u16 value)
 {
-	set_flag(cpu, P_Z, value & 255 == 0);
-	set_flag(cpu, P_N, value & 128);
+	_setFlag(cpu, P_Z, value & 255 == 0);
+	_setFlag(cpu, P_N, value & 128);
 }
 
 // Set carry, negative, and/or zero bits of state flags register, given a 16-bit value
-static inline void flags_cnz(MOS_6500 *cpu, uint16_t value)
+static inline void _setFlagsCNZ(MOS6500 *cpu, u16 value)
 {
-	set_flag(cpu, P_C, value > 255);
-	flags_nz(cpu, value);
+	_setFlag(cpu, P_C, value > 255);
+	_setFlagsNZ(cpu, value);
 }
 
 // Common functionality for interrupt operations
-static inline void interrupt(MOS_6500 *cpu, uint16_t new_abs_addr, uint8_t new_cycles)
+static inline void _interrupt(MOS6500 *cpu, u16 new_abs_addr, u8 new_cycles)
 {
 	// write the counter's current value to stack
-	mos6500_stack_write_addr(cpu, cpu->regs.c);
+	mos6500StackWriteAddr(cpu, cpu->regs.c);
 
 	// set and write flags register to stack too
-	set_flag(cpu, P_B, 0);
-	set_flag(cpu, P_U, 1);
-	set_flag(cpu, P_I, 1);
-	mos6500_stack_write(cpu, cpu->regs.p);
+	_setFlag(cpu, P_B, 0);
+	_setFlag(cpu, P_U, 1);
+	_setFlag(cpu, P_I, 1);
+	mos6500StackWrite(cpu, cpu->regs.p);
 
 	// get a new counter
 	cpu->last_abs_addr = new_abs_addr;
-	cpu->regs.c = mos6500_fetch_addr(cpu);
+	cpu->regs.c = mos6500FetchAddr(cpu);
 
 	cpu->cycles = new_cycles;
 }
 
 // address modes
 
-uint8_t am6500_abs(MOS_6500 *cpu)
+u8 mos6500Absolute(MOS6500 *cpu)
 {
-	cpu->last_abs_addr = mos6500_read_rom_addr(cpu);
+	cpu->last_abs_addr = mos6500ROMReadAddr(cpu);
 	return 0;
 }
 
-uint8_t am6500_absx(MOS_6500 *cpu)
+u8 mos6500AbsoluteX(MOS6500 *cpu)
 {
-	uint16_t addr = mos6500_read_rom_addr(cpu) + cpu->regs.x;
+	u16 addr = mos6500ROMReadAddr(cpu) + cpu->regs.x;
 	cpu->last_abs_addr = addr;
 
-	if (HI16(cpu->last_abs_addr) != HI16(addr))
+	if (_HI16(cpu->last_abs_addr) != _HI16(addr))
 		return 1;
 	else
 		return 0;
 }
 
-uint8_t am6500_absy(MOS_6500 *cpu)
+u8 mos6500AbsoluteY(MOS6500 *cpu)
 {
-	uint16_t addr = mos6500_read_rom_addr(cpu) + cpu->regs.y;
+	u16 addr = mos6500ROMReadAddr(cpu) + cpu->regs.y;
 	cpu->last_abs_addr = addr;
 
-	return HI16(cpu->last_abs_addr) != HI16(addr) ? 1 : 0;
+	return _HI16(cpu->last_abs_addr) != _HI16(addr) ? 1 : 0;
 }
 
-uint8_t am6500_imm(MOS_6500 *cpu)
+u8 mos6500Immediate(MOS6500 *cpu)
 {
 	cpu->last_abs_addr = ++cpu->regs.c;
 	return 0;
 }
 
-uint8_t am6500_imp(MOS_6500 *cpu)
+u8 mos6500Implied(MOS6500 *cpu)
 {
 	cpu->cache = cpu->regs.a;
 	return 0;
 }
 
-uint8_t am6500_ind(MOS_6500 *cpu)
+u8 mos6500Indirect(MOS6500 *cpu)
 {
-	uint16_t ptr = mos6500_read_rom_addr(cpu);
+	u16 ptr = mos6500ROMReadAddr(cpu);
 
 	if (ptr & 255)
 		// emulate page boundary hardware bug
-		cpu->last_abs_addr = bus6500_read_addr(cpu->bus, ptr);
+		cpu->last_abs_addr = mos6500ReadAddr(cpu->bus, ptr);
 	else
 		// normal behavior
-		cpu->last_abs_addr = bus6500_read_addr(cpu->bus, ptr + 1);
+		cpu->last_abs_addr = mos6500ReadAddr(cpu->bus, ptr + 1);
 
 	return 0;
 }
 
-uint8_t am6500_indx(MOS_6500 *cpu)
+u8 mos6500IndirectX(MOS6500 *cpu)
 {
-	cpu->last_abs_addr = bus6500_read_addr(cpu->bus, (mos6500_read_rom(cpu) + cpu->regs.x) & 255);
+	cpu->last_abs_addr = mos6500ReadAddr(cpu->bus, (mos6500ROMRead(cpu) + cpu->regs.x) & 255);
 	return 0;
 }
 
-uint8_t am6500_indy(MOS_6500 *cpu)
+u8 mos6500IndirectY(MOS6500 *cpu)
 {
-	uint16_t t = mos6500_read_rom(cpu);
-	uint16_t lo = bus6500_read(cpu->bus, t & 255);
-	uint16_t hi = bus6500_read(cpu->bus, (t + 1) & 255);
+	u16 t = mos6500ROMRead(cpu);
+	u16 lo = mos6500Read(cpu->bus, t & 255);
+	u16 hi = mos6500Read(cpu->bus, (t + 1) & 255);
 
 	cpu->last_abs_addr = (hi << 8) | lo + cpu->regs.y;
 
-	return HI16(cpu->last_abs_addr) != hi << 8 ? 1 : 0;
+	return _HI16(cpu->last_abs_addr) != hi << 8 ? 1 : 0;
 }
 
-uint8_t am6500_rel(MOS_6500 *cpu)
+u8 mos6500Relative(MOS6500 *cpu)
 {
-	cpu->last_rel_addr = mos6500_read_rom(cpu);
+	cpu->last_rel_addr = mos6500ROMRead(cpu);
 
 	// check for signed bit
 	if (cpu->last_rel_addr & 128)
@@ -470,278 +459,278 @@ uint8_t am6500_rel(MOS_6500 *cpu)
 	return 0;
 }
 
-uint8_t am6500_zp(MOS_6500 *cpu)
+u8 mos6500ZeroPage(MOS6500 *cpu)
 {
-	cpu->last_abs_addr = mos6500_read_rom(cpu);
+	cpu->last_abs_addr = mos6500ROMRead(cpu);
 	return 0;
 }
 
-uint8_t am6500_zpx(MOS_6500 *cpu)
+u8 mos6500ZeroPageX(MOS6500 *cpu)
 {
-	cpu->last_rel_addr = (mos6500_read_rom(cpu) + cpu->regs.x) & 255;
+	cpu->last_rel_addr = (mos6500ROMRead(cpu) + cpu->regs.x) & 255;
 	return 0;
 }
 
-uint8_t am6500_zpy(MOS_6500 *cpu)
+u8 mos6500ZeroPageY(MOS6500 *cpu)
 {
-	cpu->last_rel_addr = (mos6500_read_rom(cpu) + cpu->regs.y) & 255;
+	cpu->last_rel_addr = (mos6500ROMRead(cpu) + cpu->regs.y) & 255;
 	return 0;
 }
 
 
-// branching
+// _branching
 
-uint8_t op6500_bcc(MOS_6500 *cpu)
+u8 mos6500BCC(MOS6500 *cpu)
 {
-	if (!check_flag(cpu, P_C))
-		branch(cpu);
+	if (!_checkFlag(cpu, P_C))
+		_branch(cpu);
 	return 0;
 }
 
-uint8_t op6500_bcs(MOS_6500 *cpu)
+u8 mos6500BCS(MOS6500 *cpu)
 {
-	if (check_flag(cpu, P_C))
-		branch(cpu);
+	if (_checkFlag(cpu, P_C))
+		_branch(cpu);
 	return 0;
 }
 
-uint8_t op6500_beq(MOS_6500 *cpu)
+u8 mos6500BEQ(MOS6500 *cpu)
 {
-	if (check_flag(cpu, P_Z))
-		branch(cpu);
+	if (_checkFlag(cpu, P_Z))
+		_branch(cpu);
 	return 0;
 }
 
-uint8_t op6500_bmi(MOS_6500 *cpu)
+u8 mos6500BMI(MOS6500 *cpu)
 {
-	if (check_flag(cpu, P_N))
-		branch(cpu);
+	if (_checkFlag(cpu, P_N))
+		_branch(cpu);
 	return 0;
 }
 
-uint8_t op6500_bne(MOS_6500 *cpu)
+u8 mos6500BNE(MOS6500 *cpu)
 {
-	if (!check_flag(cpu, P_Z))
-		branch(cpu);
+	if (!_checkFlag(cpu, P_Z))
+		_branch(cpu);
 	return 0;
 }
 
-uint8_t op6500_bpl(MOS_6500 *cpu)
+u8 mos6500BPL(MOS6500 *cpu)
 {
-	if (!check_flag(cpu, P_N))
-		branch(cpu);
+	if (!_checkFlag(cpu, P_N))
+		_branch(cpu);
 	return 0;
 }
 
-uint8_t op6500_bvc(MOS_6500 *cpu)
+u8 mos6500BVC(MOS6500 *cpu)
 {
-	if (!check_flag(cpu, P_V))
-		branch(cpu);
+	if (!_checkFlag(cpu, P_V))
+		_branch(cpu);
 	return 0;
 }
 
-uint8_t op6500_bvs(MOS_6500 *cpu)
+u8 mos6500BVS(MOS6500 *cpu)
 {
-	if (check_flag(cpu, P_V))
-		branch(cpu);
+	if (_checkFlag(cpu, P_V))
+		_branch(cpu);
 	return 0;
 }
 
 
 // state bit manipulation
 
-uint8_t op6500_clc(MOS_6500 *cpu)
+u8 mos6500CLC(MOS6500 *cpu)
 {
-	set_flag(cpu, P_C, 0);
+	_setFlag(cpu, P_C, 0);
 	return 0;
 }
 
-uint8_t op6500_cld(MOS_6500 *cpu)
+u8 mos6500CLD(MOS6500 *cpu)
 {
-	set_flag(cpu, P_D, 0);
+	_setFlag(cpu, P_D, 0);
 	return 0;
 }
 
-uint8_t op6500_cli(MOS_6500 *cpu)
+u8 mos6500CLI(MOS6500 *cpu)
 {
-	set_flag(cpu, P_I, 0);
+	_setFlag(cpu, P_I, 0);
 	return 0;
 }
 
-uint8_t op6500_clv(MOS_6500 *cpu)
+u8 mos6500CLV(MOS6500 *cpu)
 {
-	set_flag(cpu, P_V, 0);
+	_setFlag(cpu, P_V, 0);
 	return 0;
 }
 
-uint8_t op6500_sec(MOS_6500 *cpu)
+u8 mos6500SEC(MOS6500 *cpu)
 {
-	set_flag(cpu, P_C, 1);
+	_setFlag(cpu, P_C, 1);
 	return 0;
 }
 
-uint8_t op6500_sed(MOS_6500 *cpu)
+u8 mos6500SED(MOS6500 *cpu)
 {
-	set_flag(cpu, P_D, 1);
+	_setFlag(cpu, P_D, 1);
 	return 0;
 }
 
-uint8_t op6500_sei(MOS_6500 *cpu)
+u8 mos6500SEI(MOS6500 *cpu)
 {
-	set_flag(cpu, P_I, 1);
+	_setFlag(cpu, P_I, 1);
 	return 0;
 }
 
 
-// interrupts
+// _interrupts
 
-uint8_t op6500_brk(MOS_6500 *cpu)
+u8 mos6500BRK(MOS6500 *cpu)
 {
-	// differs slightly from interrupt
+	// differs slightly from _interrupt
 
 	cpu->regs.c++;
 
-	set_flag(cpu, P_I, 1);
-	mos6500_stack_write_addr(cpu, cpu->regs.c);
+	_setFlag(cpu, P_I, 1);
+	mos6500StackWriteAddr(cpu, cpu->regs.c);
 
-	set_flag(cpu, P_B, 1);
-	mos6500_stack_write(cpu, cpu->regs.p);
-	set_flag(cpu, P_B, 0);
+	_setFlag(cpu, P_B, 1);
+	mos6500StackWrite(cpu, cpu->regs.p);
+	_setFlag(cpu, P_B, 0);
 
-	cpu->regs.c = bus6500_read_addr(cpu->bus, 65534);
+	cpu->regs.c = mos6500ReadAddr(cpu->bus, 65534);
 
 	return 0;
 }
 
-void op6500_irq(MOS_6500 *cpu)
+void mos6500IRQ(MOS6500 *cpu)
 {
-	if (!check_flag(cpu, P_I))
-		interrupt(cpu, 65534, 7);
+	if (!_checkFlag(cpu, P_I))
+		_interrupt(cpu, 65534, 7);
 }
 
-void op6500_nmi(MOS_6500 *cpu)
+void mos6500NMI(MOS6500 *cpu)
 {
-	interrupt(cpu, 65530, 8);
+	_interrupt(cpu, 65530, 8);
 }
 
-uint8_t op6500_rti(MOS_6500 *cpu)
+u8 mos6500RTI(MOS6500 *cpu)
 {
 	// restore flags
-	cpu->regs.p = mos6500_stack_read(cpu);
-	set_flag(cpu, P_B, 0);
-	set_flag(cpu, P_U, 0);
+	cpu->regs.p = mos6500StackRead(cpu);
+	_setFlag(cpu, P_B, 0);
+	_setFlag(cpu, P_U, 0);
 
 	// restore counter
-	cpu->regs.c = mos6500_stack_read_addr(cpu);
+	cpu->regs.c = mos6500StackReadAddr(cpu);
 
 	return 0;
 }
 
-uint8_t op6500_rts(MOS_6500 *cpu)
+u8 mos6500RTS(MOS6500 *cpu)
 {
-	cpu->regs.c = mos6500_stack_read_addr(cpu);
+	cpu->regs.c = mos6500StackReadAddr(cpu);
 	return 0;
 }
 
 
 // pushing/popping
 
-uint8_t op6500_pha(MOS_6500 *cpu)
+u8 mos6500PHA(MOS6500 *cpu)
 {
-	mos6500_stack_write(cpu, cpu->regs.a);
+	mos6500StackWrite(cpu, cpu->regs.a);
 	return 0;
 }
 
-uint8_t op6500_php(MOS_6500 *cpu)
+u8 mos6500PHP(MOS6500 *cpu)
 {
-	set_flag(cpu, P_B, 1);
-	set_flag(cpu, P_U, 1);
-	mos6500_stack_write(cpu, cpu->regs.p);
-	set_flag(cpu, P_B, 0);
-	set_flag(cpu, P_U, 0);
+	_setFlag(cpu, P_B, 1);
+	_setFlag(cpu, P_U, 1);
+	mos6500StackWrite(cpu, cpu->regs.p);
+	_setFlag(cpu, P_B, 0);
+	_setFlag(cpu, P_U, 0);
 	return 0;
 }
 
-uint8_t op6500_pla(MOS_6500 *cpu)
+u8 mos6500PLA(MOS6500 *cpu)
 {
-	cpu->regs.a = mos6500_stack_read(cpu);
-	flags_nz(cpu, cpu->regs.a);
+	cpu->regs.a = mos6500StackRead(cpu);
+	_setFlagsNZ(cpu, cpu->regs.a);
 
 	return 0;
 }
 
-uint8_t op6500_plp(MOS_6500 *cpu)
+u8 mos6500PLP(MOS6500 *cpu)
 {
-	mos6500_stack_read(cpu);
-	set_flag(cpu, P_U, 1);
+	mos6500StackRead(cpu);
+	_setFlag(cpu, P_U, 1);
 	return 0;
 }
 
 
 // arith
 
-uint8_t op6500_adc(MOS_6500 *cpu)
+u8 mos6500ADC(MOS6500 *cpu)
 {
-	uint16_t tmp = cpu->regs.a + mos6500_fetch(cpu) + check_flag(cpu, P_C);
+	u16 tmp = cpu->regs.a + mos6500Fetch(cpu) + _checkFlag(cpu, P_C);
 
-	flags_cnz(cpu, tmp);
-	set_flag(cpu, P_V, ~((cpu->regs.a ^ cpu->cache) & (cpu->regs.a ^ tmp) & 128));
+	_setFlagsCNZ(cpu, tmp);
+	_setFlag(cpu, P_V, ~((cpu->regs.a ^ cpu->cache) & (cpu->regs.a ^ tmp) & 128));
 
 	cpu->regs.a = tmp & 255;
 
 	return 1;
 }
 
-uint8_t op6500_dec(MOS_6500 *cpu)
+u8 mos6500DEC(MOS6500 *cpu)
 {
-	uint8_t tmp = mos6500_fetch(cpu) - 1;
-	mos6500_write_last(cpu, tmp);
-	flags_nz(cpu, cpu->regs.x);
+	u8 tmp = mos6500Fetch(cpu) - 1;
+	mos6500WriteLast(cpu, tmp);
+	_setFlagsNZ(cpu, cpu->regs.x);
 
 	return 0;
 }
 
-uint8_t op6500_dex(MOS_6500 *cpu)
+u8 mos6500DEX(MOS6500 *cpu)
 {
-	flags_nz(cpu, --cpu->regs.x);
+	_setFlagsNZ(cpu, --cpu->regs.x);
 	return 0;
 }
 
-uint8_t op6500_dey(MOS_6500 *cpu)
+u8 mos6500DEY(MOS6500 *cpu)
 {
-	flags_nz(cpu, --cpu->regs.y);
+	_setFlagsNZ(cpu, --cpu->regs.y);
 	return 0;
 }
 
-uint8_t op6500_inc(MOS_6500 *cpu)
+u8 mos6500INC(MOS6500 *cpu)
 {
-	uint8_t tmp = mos6500_fetch(cpu) + 1;
-	mos6500_write_last(cpu, tmp);
-	flags_nz(cpu, tmp);
+	u8 tmp = mos6500Fetch(cpu) + 1;
+	mos6500WriteLast(cpu, tmp);
+	_setFlagsNZ(cpu, tmp);
 
 	return 0;
 }
 
-uint8_t op6500_inx(MOS_6500 *cpu)
+u8 mos6500INX(MOS6500 *cpu)
 {
-	flags_nz(cpu, ++cpu->regs.x);
+	_setFlagsNZ(cpu, ++cpu->regs.x);
 	return 0;
 }
 
-uint8_t op6500_iny(MOS_6500 *cpu)
+u8 mos6500INY(MOS6500 *cpu)
 {
-	flags_nz(cpu, ++cpu->regs.y);
+	_setFlagsNZ(cpu, ++cpu->regs.y);
 	return 0;
 }
 
-uint8_t op6500_sbc(MOS_6500 *cpu)
+u8 mos6500SBC(MOS6500 *cpu)
 {
-	uint16_t value = mos6500_fetch(cpu) ^ 255; // invert the value
-	uint16_t tmp = cpu->regs.a + value + check_flag(cpu, P_C);
+	u16 value = mos6500Fetch(cpu) ^ 255; // invert the value
+	u16 tmp = cpu->regs.a + value + _checkFlag(cpu, P_C);
 
-	flags_cnz(cpu, tmp);
+	_setFlagsCNZ(cpu, tmp);
 
-	set_flag(cpu, P_V, (tmp ^ cpu->regs.a) & ((tmp ^ value) & 128));
+	_setFlag(cpu, P_V, (tmp ^ cpu->regs.a) & ((tmp ^ value) & 128));
 	cpu->regs.a = tmp & 255;
 
 	return 1;
@@ -750,70 +739,70 @@ uint8_t op6500_sbc(MOS_6500 *cpu)
 
 // bitwise
 
-uint8_t op6500_and(MOS_6500 *cpu)
+u8 mos6500AND(MOS6500 *cpu)
 {
-	cpu->regs.a &= mos6500_fetch(cpu);
-	flags_nz(cpu, cpu->regs.a);
+	cpu->regs.a &= mos6500Fetch(cpu);
+	_setFlagsNZ(cpu, cpu->regs.a);
 
 	return 1;
 }
 
-uint8_t op6500_asl(MOS_6500 *cpu)
+u8 mos6500ASL(MOS6500 *cpu)
 {
-	uint16_t tmp = mos6500_fetch(cpu) << 1;
+	u16 tmp = mos6500Fetch(cpu) << 1;
 
-	flags_cnz(cpu, tmp);
-	check_mode(cpu, tmp & 255);
+	_setFlagsCNZ(cpu, tmp);
+	_checkMode(cpu, tmp & 255);
 
 	return 0;
 }
 
-uint8_t op6500_eor(MOS_6500 *cpu)
+u8 mos6500EOR(MOS6500 *cpu)
 {
-	cpu->regs.a ^= mos6500_fetch(cpu);
-	flags_nz(cpu, cpu->regs.a);
+	cpu->regs.a ^= mos6500Fetch(cpu);
+	_setFlagsNZ(cpu, cpu->regs.a);
 
 	return 1;
 }
 
-uint8_t op6500_lsr(MOS_6500 *cpu)
+u8 mos6500LSR(MOS6500 *cpu)
 {
-	set_flag(cpu, P_C, mos6500_fetch(cpu));
+	_setFlag(cpu, P_C, mos6500Fetch(cpu));
 
-	uint16_t tmp = cpu->cache >> 1;
+	u16 tmp = cpu->cache >> 1;
 
-	flags_nz(cpu, tmp);
-	check_mode(cpu, tmp & 255);
+	_setFlagsNZ(cpu, tmp);
+	_checkMode(cpu, tmp & 255);
 
 	return 0;
 }
 
-uint8_t op6500_ora(MOS_6500 *cpu)
+u8 mos6500ORA(MOS6500 *cpu)
 {
-	cpu->regs.a |= mos6500_fetch(cpu);
-	flags_nz(cpu, cpu->regs.a);
+	cpu->regs.a |= mos6500Fetch(cpu);
+	_setFlagsNZ(cpu, cpu->regs.a);
 
 	return 1;
 }
 
-uint8_t op6500_rol(MOS_6500 *cpu)
+u8 mos6500ROL(MOS6500 *cpu)
 {
-	uint16_t tmp = (mos6500_fetch(cpu) << 1) | check_flag(cpu, P_C);
+	u16 tmp = (mos6500Fetch(cpu) << 1) | _checkFlag(cpu, P_C);
 
-	flags_cnz(cpu, tmp);
-	check_mode(cpu, tmp & 255);
+	_setFlagsCNZ(cpu, tmp);
+	_checkMode(cpu, tmp & 255);
 
 	return 0;
 }
 
-uint8_t op6500_ror(MOS_6500 *cpu)
+u8 mos6500ROR(MOS6500 *cpu)
 {
-	mos6500_fetch(cpu);
-	uint16_t tmp = (cpu->cache << 7) | (cpu->cache >> 1);
+	mos6500Fetch(cpu);
+	u16 tmp = (cpu->cache << 7) | (cpu->cache >> 1);
 
-	set_flag(cpu, P_C, cpu->cache & 1);
-	flags_nz(cpu, tmp);
-	check_mode(cpu, tmp & 255);
+	_setFlag(cpu, P_C, cpu->cache & 1);
+	_setFlagsNZ(cpu, tmp);
+	_checkMode(cpu, tmp & 255);
 
 	return 0;
 }
@@ -821,43 +810,43 @@ uint8_t op6500_ror(MOS_6500 *cpu)
 
 // comparison
 
-uint8_t op6500_bit(MOS_6500 *cpu)
+u8 mos6500BIT(MOS6500 *cpu)
 {
-	uint16_t tmp = cpu->regs.a & mos6500_fetch(cpu);
+	u16 tmp = cpu->regs.a & mos6500Fetch(cpu);
 
-	set_flag(cpu, P_Z, tmp & 255 == 0);
-	set_flag(cpu, P_N, cpu->cache & 128);
-	set_flag(cpu, P_V, cpu->cache & 64);
+	_setFlag(cpu, P_Z, tmp & 255 == 0);
+	_setFlag(cpu, P_N, cpu->cache & 128);
+	_setFlag(cpu, P_V, cpu->cache & 64);
 
 	return 0;
 }
 
-uint8_t op6500_cmp(MOS_6500 *cpu)
+u8 mos6500CMP(MOS6500 *cpu)
 {
-	uint16_t tmp = cpu->regs.a - mos6500_fetch(cpu);
+	u16 tmp = cpu->regs.a - mos6500Fetch(cpu);
 
-	set_flag(cpu, P_C, cpu->regs.a >= cpu->cache);
-	flags_nz(cpu, tmp);
+	_setFlag(cpu, P_C, cpu->regs.a >= cpu->cache);
+	_setFlagsNZ(cpu, tmp);
 
 	return 1;
 }
 
-uint8_t op6500_cpx(MOS_6500 *cpu)
+u8 mos6500CPX(MOS6500 *cpu)
 {
-	uint16_t tmp = cpu->regs.x - mos6500_fetch(cpu);
+	u16 tmp = cpu->regs.x - mos6500Fetch(cpu);
 
-	set_flag(cpu, P_C, cpu->regs.x >= cpu->cache);
-	flags_nz(cpu, tmp);
+	_setFlag(cpu, P_C, cpu->regs.x >= cpu->cache);
+	_setFlagsNZ(cpu, tmp);
 
 	return 1;
 }
 
-uint8_t op6500_cpy(MOS_6500 *cpu)
+u8 mos6500CPY(MOS6500 *cpu)
 {
-	uint16_t tmp = cpu->regs.y - mos6500_fetch(cpu);
+	u16 tmp = cpu->regs.y - mos6500Fetch(cpu);
 
-	set_flag(cpu, P_C, cpu->regs.y >= cpu->cache);
-	flags_nz(cpu, tmp);
+	_setFlag(cpu, P_C, cpu->regs.y >= cpu->cache);
+	_setFlagsNZ(cpu, tmp);
 
 	return 1;
 }
@@ -865,15 +854,15 @@ uint8_t op6500_cpy(MOS_6500 *cpu)
 
 // jumping
 
-uint8_t op6500_jmp(MOS_6500 *cpu)
+u8 mos6500JMP(MOS6500 *cpu)
 {
 	cpu->regs.c = cpu->last_abs_addr;
 	return 0;
 }
 
-uint8_t op6500_jsr(MOS_6500 *cpu)
+u8 mos6500JSR(MOS6500 *cpu)
 {
-	mos6500_stack_write_addr(cpu, cpu->regs.c);
+	mos6500StackWriteAddr(cpu, cpu->regs.c);
 	cpu->regs.c = cpu->last_abs_addr;
 	return 0;
 }
@@ -881,96 +870,96 @@ uint8_t op6500_jsr(MOS_6500 *cpu)
 
 // loading
 
-uint8_t op6500_lda(MOS_6500 *cpu)
+u8 mos6500LDA(MOS6500 *cpu)
 {
-	cpu->regs.a = mos6500_fetch(cpu);
-	flags_nz(cpu, cpu->regs.a);
+	cpu->regs.a = mos6500Fetch(cpu);
+	_setFlagsNZ(cpu, cpu->regs.a);
 	return 1;
 }
 
-uint8_t op6500_ldx(MOS_6500 *cpu)
+u8 mos6500LDX(MOS6500 *cpu)
 {
-	cpu->regs.x = mos6500_fetch(cpu);
-	flags_nz(cpu, cpu->regs.x);
+	cpu->regs.x = mos6500Fetch(cpu);
+	_setFlagsNZ(cpu, cpu->regs.x);
 	return 1;
 }
 
-uint8_t op6500_ldy(MOS_6500 *cpu)
+u8 mos6500LDY(MOS6500 *cpu)
 {
-	cpu->regs.y = mos6500_fetch(cpu);
-	flags_nz(cpu, cpu->regs.y);
+	cpu->regs.y = mos6500Fetch(cpu);
+	_setFlagsNZ(cpu, cpu->regs.y);
 	return 1;
 }
 
 
 // storing
 
-uint8_t op6500_sta(MOS_6500 *cpu)
+u8 mos6500STA(MOS6500 *cpu)
 {
-	mos6500_write_last(cpu, cpu->regs.a);
+	mos6500WriteLast(cpu, cpu->regs.a);
 	return 0;
 }
 
-uint8_t op6500_stx(MOS_6500 *cpu)
+u8 mos6500STX(MOS6500 *cpu)
 {
-	mos6500_write_last(cpu, cpu->regs.x);
+	mos6500WriteLast(cpu, cpu->regs.x);
 	return 0;
 }
 
-uint8_t op6500_sty(MOS_6500 *cpu)
+u8 mos6500STY(MOS6500 *cpu)
 {
-	mos6500_write_last(cpu, cpu->regs.y);
+	mos6500WriteLast(cpu, cpu->regs.y);
 	return 0;
 }
 
 
 // transferring
 
-uint8_t op6500_tax(MOS_6500 *cpu)
+u8 mos6500TAX(MOS6500 *cpu)
 {
 	cpu->regs.x = cpu->regs.a;
-	flags_nz(cpu, cpu->regs.x);
+	_setFlagsNZ(cpu, cpu->regs.x);
 	return 0;
 }
 
-uint8_t op6500_tay(MOS_6500 *cpu)
+u8 mos6500TAY(MOS6500 *cpu)
 {
 	cpu->regs.y = cpu->regs.a;
-	flags_nz(cpu, cpu->regs.y);
+	_setFlagsNZ(cpu, cpu->regs.y);
 	return 0;
 }
 
-uint8_t op6500_tsx(MOS_6500 *cpu)
+u8 mos6500TSX(MOS6500 *cpu)
 {
 	cpu->regs.x = cpu->regs.s;
-	flags_nz(cpu, cpu->regs.x);
+	_setFlagsNZ(cpu, cpu->regs.x);
 	return 0;
 }
 
-uint8_t op6500_txa(MOS_6500 *cpu)
+u8 mos6500TXA(MOS6500 *cpu)
 {
 	cpu->regs.a = cpu->regs.x;
-	flags_nz(cpu, cpu->regs.a);
+	_setFlagsNZ(cpu, cpu->regs.a);
 	return 0;
 }
 
-uint8_t op6500_txs(MOS_6500 *cpu)
+u8 mos6500TXS(MOS6500 *cpu)
 {
 	cpu->regs.s = cpu->regs.x;
 	return 0;
 }
 
-uint8_t op6500_tya(MOS_6500 *cpu)
+u8 mos6500TYA(MOS6500 *cpu)
 {
 	cpu->regs.a = cpu->regs.y;
-	flags_nz(cpu, cpu->regs.a);
+	_setFlagsNZ(cpu, cpu->regs.a);
 	return 0;
 }
 
 
 // misc
 
-uint8_t op6500_nop(MOS_6500 *cpu)
+u8 mos6500NOP(MOS6500 *cpu)
 {
 	switch (cpu->last_op)
 	{

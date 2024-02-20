@@ -11,11 +11,11 @@ struct _PPU_2C02
 	int16_t y; // screen column
 	uint16_t last_addr;
 	SDL_Renderer *renderer;
-	uint8_t *status;
-	uint8_t *mask;
-	uint8_t *ctrl;
-	uint8_t *data;
-	uint8_t *addr;
+	uint8_t status;
+	uint8_t mask;
+	uint8_t ctrl;
+	uint8_t data;
+	uint8_t addr;
 	BUS_6500 *bus; // PPU's own bus
 	DEV_6500 *cpu_node; // device node in CPU bus device tree
 	DEV_6500 *ppu_node; // device node in its own bus

@@ -1,33 +1,20 @@
-#ifndef _6500_DISASM_H
-#define _6500_DISASM_H
-
-#include <stdint.h>
-
-// Disassembly line length
-#define DISASM_STR_LEN 16
+#pragma once
 
 // Disassembly cache
-typedef struct _DISASM_6500
-{
-	char lhs[DISASM_STR_LEN];
-	char rhs[DISASM_STR_LEN];
-	uint16_t addr;
-	struct _DISASM_6500 *next;
-} DISASM_6500;
+typedef struct _MOS6500Disasm MOS6500Disasm;
+
 
 // Deallocate disassembly cache
-void disasm6500_free(DISASM_6500 *);
+void mos6500DisasmFree(MOS6500Disasm *disasm);
 
 // Retrieve the disassembly line at a given index
-const DISASM_6500 * disasm6500_get(DISASM_6500 *, uint16_t);
+const MOS6500Disasm * mos6500DisasmGet(MOS6500Disasm *disasm, size_t index);
 
 // Disassembles a single operation. `next` is NULL.
-DISASM_6500 * disasm6500_op(uint8_t *, uint16_t *);
+MOS6500Disasm * mos6500DisasmOp(const hxbuf buf, size_t *offset);
 
 // Prints all disassembly in tree
-void disasm6500_print(DISASM_6500 *);
+void mos6500DisasmDump(MOS6500Disasm *disasm);
 
 // Disassembles a range of memory
-DISASM_6500 * disasm6500_range(uint8_t *, uint16_t, uint16_t);
-
-#endif // _6500_DISASM_H
+MOS6500Disasm * mos6500DisasmRange(const hxbuf buf, size_t start, size_t end);

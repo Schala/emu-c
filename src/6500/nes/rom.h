@@ -23,6 +23,8 @@ typedef struct _NES_ROM_HEADER
 struct _NES_ROM
 {
 	uint8_t mapper_id;
+	uint32_t size;
+	uint8_t *data;
 	DEV_6500 *cpu_node; // program
 	DEV_6500 *ppu_node; // sprite patterns
 	NES_MAPPER prg_map;
@@ -36,7 +38,7 @@ NES_ROM * nes_rom_alloc(NES *, const char *);
 // Deallocate ROM
 void nes_rom_free(NES *);
 
-void nes_print_rom_info(const NES_ROM *);
+void nes_rom_print_info(const NES_ROM *);
 
 // ROM read from CPU
 uint8_t nes_rom_read_cpu(NES *, uint16_t);
