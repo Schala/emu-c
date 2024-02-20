@@ -6,15 +6,15 @@
 // Moved from cpu.h/.c to reduce bloat regarding the internal opcodes table
 
 // CPU clock operation (execute one instruction)
-void mos6500Clock(MOS6500 *cpucpu);
+void mos6500_clock(MOS_6500 *);
 
 // Fetch and cache a byte from the cached absolute address
-u8 mos6500Fetch(MOS6500 *cpucpu);
+uint8_t mos6500_fetch(MOS_6500 *);
 
 // Read address from RAM
-static inline uint16_t mos6500FetchAddr(MOS6500 *cpucpu)
+static inline uint16_t mos6500_fetch_addr(MOS_6500 *cpu)
 {
-	return mos6500Fetch(cpu) | (mos6500Fetch(cpu) << 8);
+	return mos6500_fetch(cpu) | (mos6500_fetch(cpu) << 8);
 }
 
 
@@ -25,312 +25,247 @@ static inline uint16_t mos6500FetchAddr(MOS6500 *cpucpu)
 // address modes
 
 // Absolute address mode
-u8 mos6500Absolute(MOS6500 *cpu);
+uint8_t am6500_abs(MOS_6500 *);
 
 // Absolute address mode with X register offset
-u8 mos6500AbsoluteX(MOS6500 *cpu);
+uint8_t am6500_absx(MOS_6500 *);
 
 // Absolute address mode with Y register offset
-u8 mos6500AbsoluteY(MOS6500 *cpu);
+uint8_t am6500_absy(MOS_6500 *);
 
 // Immediate address mode
-u8 mos6500Immediate(MOS6500 *cpu);
+uint8_t am6500_imm(MOS_6500 *);
 
 // Implied address mode
-u8 mos6500Implied(MOS6500 *cpu);
+uint8_t am6500_imp(MOS_6500 *);
 
 // Indirect address mode
-u8 mos6500Indirect(MOS6500 *cpu);
+uint8_t am6500_ind(MOS_6500 *);
 
 // Indirect address mode of zero-page with X register offset
-u8 mos6500IndirectX(MOS6500 *cpu);
+uint8_t am6500_indx(MOS_6500 *);
 
 // Indirect address mode of zero-page with Y register offset
-u8 mos6500IndirectY(MOS6500 *cpu);
+uint8_t am6500_indy(MOS_6500 *);
 
 // Relative address mode (branching)
-u8 mos6500Relative(MOS6500 *cpu);
+uint8_t am6500_rel(MOS_6500 *);
 
 // Zero-page address mode
-u8 mos6500ZeroPage(MOS6500 *cpu);
+uint8_t am6500_zp(MOS_6500 *);
 
 // Zero-page address mode with X register offset
-u8 mos6500ZeroPageX(MOS6500 *cpu);
+uint8_t am6500_zpx(MOS_6500 *);
 
 // Zero-page address mode with Y register offset
-u8 mos6500ZeroPageY(MOS6500 *cpu);
+uint8_t am6500_zpy(MOS_6500 *);
 
 
 // branching
 
 // Branching if carry bit clear
-u8 mos6500BCC(MOS6500 *cpu);
+uint8_t op6500_bcc(MOS_6500 *);
 
 // Branching if carry bit set
-u8 mos6500BCS(MOS6500 *cpu);
+uint8_t op6500_bcs(MOS_6500 *);
 
 // Branching if equal
-u8 mos6500BEQ(MOS6500 *cpu);
+uint8_t op6500_beq(MOS_6500 *);
 
 // Branching if negative
-u8 mos6500BMI(MOS6500 *cpu);
+uint8_t op6500_bmi(MOS_6500 *);
 
 // Branching if not equal
-u8 mos6500BNE(MOS6500 *cpu);
+uint8_t op6500_bne(MOS_6500 *);
 
 // Branching if positive
-u8 mos6500BPL(MOS6500 *cpu);
+uint8_t op6500_bpl(MOS_6500 *);
 
 // Branching if overflow bit clear
-u8 mos6500BVC(MOS6500 *cpu);
+uint8_t op6500_bvc(MOS_6500 *);
 
 // Branching if overflow bit set
-u8 mos6500BVS(MOS6500 *cpu);
+uint8_t op6500_bvs(MOS_6500 *);
 
 
 // status bit manipulation
 
 // Clear carry bit
-u8 mos6500CLC(MOS6500 *cpu);
+uint8_t op6500_clc(MOS_6500 *);
 
 // Clear decimal mode bit
-u8 mos6500CLD(MOS6500 *cpu);
+uint8_t op6500_cld(MOS_6500 *);
 
 // Clear disable interrupts bit
-u8 mos6500CLI(MOS6500 *cpu);
+uint8_t op6500_cli(MOS_6500 *);
 
 // Clear overflow bit
-u8 mos6500CLV(MOS6500 *cpu);
+uint8_t op6500_clv(MOS_6500 *);
 
 // Set carry bit
-u8 mos6500SEC(MOS6500 *cpu);
+uint8_t op6500_sec(MOS_6500 *);
 
 // Set decimal mode bit
-u8 mos6500SED(MOS6500 *cpu);
+uint8_t op6500_sed(MOS_6500 *);
 
 // Set disable interrupts bit
-u8 mos6500SEI(MOS6500 *cpu);
+uint8_t op6500_sei(MOS_6500 *);
 
 
 // interrupts
 
 // Program-sourced interrupt
-u8 mos6500BRK(MOS6500 *cpu);
+uint8_t op6500_brk(MOS_6500 *);
 
 // Interrupt request
-void mos6500IRQ(MOS6500 *cpu);
+void op6500_irq(MOS_6500 *);
 
 // Non-maskable interrupt
-void mos6500NMI(MOS6500 *cpu);
+void op6500_nmi(MOS_6500 *);
 
 // Return from interrupt
-u8 mos6500RTI(MOS6500 *cpu);
+uint8_t op6500_rti(MOS_6500 *);
 
 // Return from subroutine
-u8 mos6500RTS(MOS6500 *cpu);
+uint8_t op6500_rts(MOS_6500 *);
 
 
 // pushing/popping
 
 // Push accumulator to stack
-u8 mos6500PHA(MOS6500 *cpu);
+uint8_t op6500_pha(MOS_6500 *);
 
 // Push status to stack
-u8 mos6500PHP(MOS6500 *cpu);
+uint8_t op6500_php(MOS_6500 *);
 
 // Pop accumulator from stack
-u8 mos6500PLA(MOS6500 *cpu);
+uint8_t op6500_pla(MOS_6500 *);
 
 // Pop status from stack
-u8 mos6500PLP(MOS6500 *cpu);
+uint8_t op6500_plp(MOS_6500 *);
 
 
 // arithmetic
 
 // Add with carry
-u8 mos6500ADC(MOS6500 *cpu);
+uint8_t op6500_adc(MOS_6500 *);
 
 // Decrement value at location
-u8 mos6500DEC(MOS6500 *cpu);
+uint8_t op6500_dec(MOS_6500 *);
 
 // Decrement X register
-u8 mos6500DEX(MOS6500 *cpu);
+uint8_t op6500_dex(MOS_6500 *);
 
 // Decrement Y register
-u8 mos6500DEY(MOS6500 *cpu);
+uint8_t op6500_dey(MOS_6500 *);
 
 // Increment value at location
-u8 mos6500INC(MOS6500 *cpu);
+uint8_t op6500_inc(MOS_6500 *);
 
 // Increment X register
-u8 mos6500INX(MOS6500 *cpu);
+uint8_t op6500_inx(MOS_6500 *);
 
 // Increment Y register
-u8 mos6500INY(MOS6500 *cpu);
+uint8_t op6500_iny(MOS_6500 *);
 
 // Subtract with carry
-u8 mos6500SBC(MOS6500 *cpu);
+uint8_t op6500_sbc(MOS_6500 *);
 
 
 // bitwise
 
 // Bitwise AND
-u8 mos6500AND(MOS6500 *cpu);
+uint8_t op6500_and(MOS_6500 *);
 
 // Arithmetical shift left
-u8 mos6500ASL(MOS6500 *cpu);
+uint8_t op6500_asl(MOS_6500 *);
 
 // Logical shift right
-u8 mos6500LSR(MOS6500 *cpu);
+uint8_t op6500_lsr(MOS_6500 *);
 
 // Exclusive OR
-u8 mos6500EOR(MOS6500 *cpu);
+uint8_t op6500_eor(MOS_6500 *);
 
 // Bitwise OR
-u8 mos6500ORA(MOS6500 *cpu);
+uint8_t op6500_ora(MOS_6500 *);
 
 // Rotate left
-u8 mos6500ROL(MOS6500 *cpu);
+uint8_t op6500_rol(MOS_6500 *);
 
 // Rotate right
-u8 mos6500ROR(MOS6500 *cpu);
+uint8_t op6500_ror(MOS_6500 *);
 
 
 // comparison
 
 // bit test
-u8 mos6500BIT(MOS6500 *cpu);
+uint8_t op6500_bit(MOS_6500 *);
 
 // Compare accumulator
-u8 mos6500CMP(MOS6500 *cpu);
+uint8_t op6500_cmp(MOS_6500 *);
 
 // Compare X register
-u8 mos6500CPX(MOS6500 *cpu);
+uint8_t op6500_cpx(MOS_6500 *);
 
 // Compare Y register
-u8 mos6500CPY(MOS6500 *cpu);
+uint8_t op6500_cpy(MOS_6500 *);
 
 
 // jumping
 
 // jump to location
-u8 mos6500JMP(MOS6500 *cpu);
+uint8_t op6500_jmp(MOS_6500 *);
 
 // jump to subroutine
-u8 mos6500JSR(MOS6500 *cpu);
+uint8_t op6500_jsr(MOS_6500 *);
 
 
 // loading
 
 // load accumulator
-u8 mos6500LDA(MOS6500 *cpu);
+uint8_t op6500_lda(MOS_6500 *);
 
 // load X register
-u8 mos6500LDX(MOS6500 *cpu);
+uint8_t op6500_ldx(MOS_6500 *);
 
 // load Y register
-u8 mos6500LDY(MOS6500 *cpu);
+uint8_t op6500_ldy(MOS_6500 *);
 
 
 // storing
 
 // store accumulator at address
-u8 mos6500STA(MOS6500 *cpu);
+uint8_t op6500_sta(MOS_6500 *);
 
 // store X register at address
-u8 mos6500STX(MOS6500 *cpu);
+uint8_t op6500_stx(MOS_6500 *);
 
 // store Y register at address
-u8 mos6500STY(MOS6500 *cpu);
+uint8_t op6500_sty(MOS_6500 *);
 
 
 // transferring
 
 // transfer accumulator to X register
-u8 mos6500TAX(MOS6500 *cpu);
+uint8_t op6500_tax(MOS_6500 *);
 
 // transfer accumulator to Y register
-u8 mos6500TAY(MOS6500 *cpu);
+uint8_t op6500_tay(MOS_6500 *);
 
 // transfer stack pointer to X register
-u8 mos6500TSX(MOS6500 *cpu);
+uint8_t op6500_tsx(MOS_6500 *);
 
 // transfer X register to accumulator
-u8 mos6500TXA(MOS6500 *cpu);
+uint8_t op6500_txa(MOS_6500 *);
 
 // transfer X register to stack pointer
-u8 mos6500TXS(MOS6500 *cpu);
+uint8_t op6500_txs(MOS_6500 *);
 
 // transfer Y register to accumulator
-u8 mos6500TYA(MOS6500 *cpu);
+uint8_t op6500_tya(MOS_6500 *);
 
-
-// illegal opcodes
-
-// AND + LSR
-uint8_t op6500_alr(MOS_6500 *);
-
-// AND + carry set
-uint8_t op6500_anc(MOS_6500 *);
-
-// cpu_magic AND X AND oper
-uint8_t op6500_ane(MOS_6500 *);
-
-// AND + ROR
-uint8_t op6500_arr(MOS_6500 *);
-
-// DEC + CMP
-uint8_t op6500_dcp(MOS_6500 *);
-
-// INC + SBC
-uint8_t op6500_isc(MOS_6500 *);
-
-// Jams the MOS_6500 into a freeze, requiring a reset
-uint8_t op6500_jam(MOS_6500 *);
-
-// LDA / TSX oper
-uint8_t op6500_las(MOS_6500 *);
-
-// LDA + LDX
-uint8_t op6500_lax(MOS_6500 *);
-
-// store cpu_magic AND oper in accumulator and X
-uint8_t op6500_lxa(MOS_6500 *);
 
 // no operation
-u8 mos6500NOP(MOS6500 *cpu);
-
-// ROL + AND
-uint8_t op6500_rla(MOS_6500 *);
-
-// ROR + ADC
-uint8_t op6500_rra(MOS_6500 *);
-
-// store accumulator AND X
-uint8_t op6500_sax(MOS_6500 *);
-
-// (X = accumulator AND X) + SBC
-uint8_t op6500_sbx(MOS_6500 *);
-
-// store accumulator AND X AND hi-addr + 1
-uint8_t op6500_sha(MOS_6500 *);
-
-// store X register AND hi-addr + 1
-uint8_t op6500_shx(MOS_6500 *);
-
-// store Y register AND hi-addr + 1
-uint8_t op6500_shy(MOS_6500 *);
-
-// store ASL + ORA
-uint8_t op6500_slo(MOS_6500 *);
-
-// store LSR + EOR
-uint8_t op6500_sre(MOS_6500 *);
-
-// transfer accumulator AND X to stack pointer
-uint8_t op6500_tas(MOS_6500 *);
-
-// SBC + NOP
-uint8_t op6500_usbc(MOS_6500 *);
+uint8_t op6500_nop(MOS_6500 *);
 
 #endif // _6500_ISA_H

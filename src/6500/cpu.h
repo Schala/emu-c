@@ -1,87 +1,106 @@
-#pragma once
+#ifndef _6500_CPU_H
+#define _6500_CPU_H
 
-#include "disasm.h"
+#include "../common/macros.h"
+#include "bus.h"
 
-//! MOS 6500 state
-typedef union
+#define MOS6500_FRAME_LEN 16
+
+// CPU registers
+typedef struct _REGS_6500
 {
-	struct
-	{
-		u8
-			c : 1,
-			z : 1,
-			i : 1,
-			d : 1,
-			b : 1,
-			u : 1,
-			v : 1,
-			n : 1;
-	} f;
-	u8 v;
-} MOS6500State;
+	uint8_t a; // accumulator
+	uint8_t x;
+	uint8_t y;
+	uint8_t s; // stack pointer
+	uint8_t p; // P_* in internal.h
+	uint16_t c; // program counter
+} REGS_6500;
 
-
-//! MOS 6500 registers
-typedef struct
+// The CPU processes data available via its bus
+typedef struct _MOS_6500
 {
-	u8 a; // accumulator
-	u8 x;
-	u8 y;
-	MOS6500State p;
-	u8 sp; // stack pointer
-	u8 *pc; // program counter
-} MOS6500Regs;
+	uint8_t cache; // last read byte
+	uint8_t cycles; // remaining cycles for current operation
+	uint8_t last_op;
+	uint8_t frame_index; // for disassembly frame
+	uint16_t last_abs_addr;
+	uint16_t last_rel_addr;
+	uint16_t frame[MOS6500_FRAME_LEN]; // disassembly scope
+	const uint8_t *stack_start; // beginning of stack for diagnostics
+	BUS_6500 *bus;
+	DEV_6500 *node; // Pointer to device node in the bus's device tree
+	REGS_6500 regs;
+} MOS_6500;
 
+// Allocate a new CPU, given a parent bus, and start and end addresses in RAM
+MOS_6500 * mos6500_alloc(BUS_6500 *, uint16_t, uint16_t);
 
-//! The MOS 6500 CPU processes data available via its bus
-typedef struct
+// Deallocate CPU
+void mos6500_free(MOS_6500 *);
+
+// Map the start and end RAM addresses if not specified during allocation
+void mos6500_map(MOS_6500 *, uint16_t, uint16_t);
+
+// Prints the disassembly in range of the current address
+void mos6500_print_disasm(const MOS_6500 *);
+
+// Prints the CPU's register states
+void mos6500_print_regs(const MOS_6500 *);
+
+// Prints the stack values
+void mos6500_print_stack(const MOS_6500 *);
+
+// Read byte from ROM
+static inline uint8_t mos6500_read_rom(MOS_6500 *cpu)
 {
-	u8 cache; // last read byte
-	u8 cycles; // remaining cycles for current operation
-	u8 last_op;
-	u8 frame_index; // for disassembly frame
-	u8 stack[256];
-	u16 frame[MOS6500_FRAME_LEN]; // disassembly scope
-	u16 abs;
-	u16 rel;
-	u16 *nmi; // offset 65530
-	u16 *reset; // offset 65532
-	u16 *irq; // offset 65534
-	MOS6500Regs regs;
-} MOS6500;
+	return bus6500_read(cpu->bus, cpu->regs.c++);
+}
 
-//! Allocate a new CPU
-MOS6500 * mos6500Alloc();
+// Read address from ROM
+static inline uint16_t mos6500_read_rom_addr(MOS_6500 *cpu)
+{
+	return (mos6500_read_rom(cpu) << 8) | mos6500_read_rom(cpu);
+}
 
-//! Disassemble from the specified address for the specified length
-MOS6500Disasm * mos6500Disasm(MOS6500 *cpu, u16 start, u16 length);
+// Reset CPU state
+void mos6500_reset(MOS_6500 *);
 
-//! Deallocate CPU
-void mos6500Free(MOS6500 *cpu);
-
-//! Prints the disassembly in range of the current address
-void mos6500DisasmDump(const MOS6500 *cpu);
-
-//! Prints the CPU's register states
-void mos6500RegsDump(const MOS6500 *cpu);
-
-//! Prints the stack values
-void mos6500StackDump(const MOS6500 *cpu);
-
-//! Reset CPU state
-void mos6500Reset(MOS6500 *cpu);
-
-//! Common functionality for branch instructions
-void mos6500Branch(MOS6500 *cpu);
+// Get a host pointer to the guest CPU's stack pointer
+static inline uint8_t * mos6500_stack_ptr(MOS_6500 *cpu)
+{
+	return &cpu->bus->ram[256 + cpu->regs.s];
+}
 
 // Read byte from stack
-u8 mos6500StackRead(MOS6500 *cpu);
+static inline uint8_t mos6500_stack_read(MOS_6500 *cpu)
+{
+	return bus6500_read(cpu->bus, 256 + (++cpu->regs.s));
+}
 
 // Read address from stack
-u16 mos6500StackReadAddr(MOS6500 *cpu);
+static inline uint16_t mos6500_stack_read_addr(MOS_6500 *cpu)
+{
+	return mos6500_stack_read(cpu) | (mos6500_stack_read(cpu) << 8);
+}
 
 // Write byte to stack
-void mos6500StackWrite(MOS6500 *cpu, u8 data);
+static inline void mos6500_stack_write(MOS_6500 *cpu, uint8_t data)
+{
+	bus6500_write(cpu->bus, 256 + (cpu->regs.s--), data);
+}
 
 // Write address to stack
-void mos6500StackWriteAddr(MOS6500 *cpu, u16 addr);
+static inline void mos6500_stack_write_addr(MOS_6500 *cpu, uint16_t addr)
+{
+	mos6500_stack_write(cpu, (addr >> 8) & 255);
+	mos6500_stack_write(cpu, addr & 255);
+}
+
+// Write byte to last used address
+static inline void mos6500_write_last(MOS_6500 *cpu, uint8_t data)
+{
+	bus6500_write(cpu->bus, cpu->last_abs_addr, data);
+}
+
+#endif // _6500_CPU_H
