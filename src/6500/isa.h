@@ -265,7 +265,72 @@ u8 mos6500TXS(MOS6500 *cpu);
 u8 mos6500TYA(MOS6500 *cpu);
 
 
+// illegal opcodes
+
+// AND + LSR
+uint8_t op6500_alr(MOS_6500 *);
+
+// AND + carry set
+uint8_t op6500_anc(MOS_6500 *);
+
+// cpu_magic AND X AND oper
+uint8_t op6500_ane(MOS_6500 *);
+
+// AND + ROR
+uint8_t op6500_arr(MOS_6500 *);
+
+// DEC + CMP
+uint8_t op6500_dcp(MOS_6500 *);
+
+// INC + SBC
+uint8_t op6500_isc(MOS_6500 *);
+
+// Jams the MOS_6500 into a freeze, requiring a reset
+uint8_t op6500_jam(MOS_6500 *);
+
+// LDA / TSX oper
+uint8_t op6500_las(MOS_6500 *);
+
+// LDA + LDX
+uint8_t op6500_lax(MOS_6500 *);
+
+// store cpu_magic AND oper in accumulator and X
+uint8_t op6500_lxa(MOS_6500 *);
+
 // no operation
 u8 mos6500NOP(MOS6500 *cpu);
+
+// ROL + AND
+uint8_t op6500_rla(MOS_6500 *);
+
+// ROR + ADC
+uint8_t op6500_rra(MOS_6500 *);
+
+// store accumulator AND X
+uint8_t op6500_sax(MOS_6500 *);
+
+// (X = accumulator AND X) + SBC
+uint8_t op6500_sbx(MOS_6500 *);
+
+// store accumulator AND X AND hi-addr + 1
+uint8_t op6500_sha(MOS_6500 *);
+
+// store X register AND hi-addr + 1
+uint8_t op6500_shx(MOS_6500 *);
+
+// store Y register AND hi-addr + 1
+uint8_t op6500_shy(MOS_6500 *);
+
+// store ASL + ORA
+uint8_t op6500_slo(MOS_6500 *);
+
+// store LSR + EOR
+uint8_t op6500_sre(MOS_6500 *);
+
+// transfer accumulator AND X to stack pointer
+uint8_t op6500_tas(MOS_6500 *);
+
+// SBC + NOP
+uint8_t op6500_usbc(MOS_6500 *);
 
 #endif // _6500_ISA_H
